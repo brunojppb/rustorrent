@@ -1,5 +1,6 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, iter::Peekable};
 
+#[derive(Debug)]
 pub struct ByteString(Vec<u8>);
 
 impl Display for ByteString {
@@ -14,7 +15,8 @@ impl Display for ByteString {
     }
 }
 
-pub enum BencodeValue {
+#[derive(Debug)]
+pub enum Bencode {
     // Bencode text is always represented as byte strings
     Text(ByteString),
     Number(i64),
@@ -22,34 +24,64 @@ pub enum BencodeValue {
     Dict(HashMap<String, Self>),
 }
 
-pub struct Bencode;
+pub struct BencodeParser;
 
-impl Bencode {
+impl BencodeParser {
+    // TODO: Should probably return a Result<Bencode, E> instead
     /// Parse the given raw content to a Bencode value
-    pub fn parse(raw_content: &Vec<u8>) {
+    pub fn parse(raw_content: &Vec<u8>) -> Bencode {
         let mut iterator = raw_content.iter().peekable();
+        let mut result = None;
         while let Some(byte) = iterator.next() {
             match char::from_u32(*byte as u32) {
-                Some('i') => println!("Start integer"),
-                Some('l') => println!("Start list"),
-                Some('d') => println!("Start Dict"),
-                Some(c) => println!("Continue value {}", c),
-                None => println!("Got nothing from {}", byte),
+                Some('i') => {
+                    result = Some(Self::parse_int(&mut iterator));
+                }
+                _ => panic!("Match arm not implemented yet"),
+                // Some('l') => println!("Starting a List"),
+                // Some('d') => println!("Starting a Dict"),
+                // Some(c) => println!("Continue value {}", c),
+                // None => println!("Got nothing from {}", byte),
             }
         }
+
+        match result {
+            Some(v) => v,
+            None => panic!("There should be a BencodeValue here!"),
+        }
+    }
+
+    // TODO: Should probably return a Result<Bencode, E> instead
+    fn parse_int<'a>(iterator: &mut Peekable<impl Iterator<Item = &'a u8>>) -> Bencode {
+        let valid_chars = vec!['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+        let mut acc = Vec::new();
+        while let Some(byte) = iterator.next() {
+            match char::from_u32(*byte as u32) {
+                Some(c) if valid_chars.contains(&c) => acc.push(c),
+                Some('e') => break,
+                Some(c) => panic!("Invalid encoded value for numbers. Found {}", c),
+                None => {
+                    println!("End of line");
+                    break;
+                }
+            }
+        }
+        let text_num: String = acc.iter().collect();
+        let num: i64 = text_num.parse().unwrap();
+        return Bencode::Number(num);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
 
     use super::*;
 
     #[test]
     fn should_parse_integer_values() {
-        let content = "i645e".as_bytes().to_vec();
-        let result = Bencode::parse(&content);
+        let content = "i64520e".as_bytes().to_vec();
+        let result = BencodeParser::parse(&content);
+        assert!(matches!(result, Bencode::Number(64520)));
     }
 
     // #[test]
