@@ -1,0 +1,21 @@
+on: [push]
+
+name: CI
+
+jobs:
+  build_and_test:
+    name: Rust project
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Git checkout"
+        uses: actions/checkout@v2
+
+      - name: "Rust setup"
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: "cargo test"
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
