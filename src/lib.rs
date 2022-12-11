@@ -51,13 +51,17 @@ impl BencodeParser {
         }
     }
 
+    /// Whether the given character is a valid number character
+    fn is_number_char(c: char) -> bool {
+        c >= '0' && c <= '9'
+    }
+
     // TODO: Should probably return a Result<Bencode, E> instead
     fn parse_int<'a>(iterator: &mut Peekable<impl Iterator<Item = &'a u8>>) -> Bencode {
-        let valid_chars = vec!['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
         let mut acc = Vec::new();
         while let Some(byte) = iterator.next() {
             match char::from_u32(*byte as u32) {
-                Some(c) if valid_chars.contains(&c) => acc.push(c),
+                Some(c) if Self::is_number_char(c) => acc.push(c),
                 Some('e') => break,
                 Some(c) => panic!("Invalid encoded value for numbers. Found {}", c),
                 None => {
@@ -79,9 +83,9 @@ mod tests {
 
     #[test]
     fn should_parse_integer_values() {
-        let content = "i64520e".as_bytes().to_vec();
+        let content = "i64520998877e".as_bytes().to_vec();
         let result = BencodeParser::parse(&content);
-        assert!(matches!(result, Bencode::Number(64520)));
+        assert!(matches!(result, Bencode::Number(64520998877)));
     }
 
     // #[test]
