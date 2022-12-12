@@ -52,7 +52,7 @@ impl BencodeParser {
     }
 
     /// Whether the given character is a valid number character
-    fn is_number_char(c: char) -> bool {
+    fn is_digit(c: char) -> bool {
         c >= '0' && c <= '9'
     }
 
@@ -61,7 +61,7 @@ impl BencodeParser {
         let mut acc = Vec::new();
         while let Some(byte) = iterator.next() {
             match char::from_u32(*byte as u32) {
-                Some(c) if Self::is_number_char(c) => acc.push(c),
+                Some(c) if Self::is_digit(c) => acc.push(c),
                 Some('e') => break,
                 Some(c) => panic!("Invalid encoded value for numbers. Found {}", c),
                 None => {
