@@ -24,18 +24,40 @@ pub enum Bencode {
     Dict(HashMap<String, Self>),
 }
 
+#[derive(Debug, Clone)]
+pub struct ParsingError {
+    message: String,
+}
+
+impl ParsingError {
+    fn new(message: String) -> Self {
+        Self { message }
+    }
+}
+
+impl Display for ParsingError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
 pub struct BencodeParser;
 
 impl BencodeParser {
-    // TODO: Should probably return a Result<Bencode, E> instead
     /// Parse the given raw content to a Bencode value
-    pub fn parse(raw_content: &Vec<u8>) -> Bencode {
+    pub fn decode(raw_content: &Vec<u8>) -> Result<Bencode, ParsingError> {
         let mut iterator = raw_content.iter().peekable();
-        let mut result = None;
+        Self::parse(&mut iterator)
+    }
+
+    fn parse<'a>(
+        iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
+    ) -> Result<Bencode, ParsingError> {
         while let Some(byte) = iterator.next() {
             match char::from_u32(*byte as u32) {
-                Some('i') => {
-                    result = Some(Self::parse_int(&mut iterator));
+                Some('i') => return Self::parse_int(iterator),
+                Some(c) if Self::is_digit(c) => {
+                    panic!("String handling not implemented")
                 }
                 _ => panic!("Match arm not implemented yet"),
                 // Some('l') => println!("Starting a List"),
@@ -45,10 +67,7 @@ impl BencodeParser {
             }
         }
 
-        match result {
-            Some(v) => v,
-            None => panic!("There should be a BencodeValue here!"),
-        }
+        Err(ParsingError::new(String::from("Invalid Bencode content")))
     }
 
     /// Whether the given character is a valid number character
@@ -56,23 +75,26 @@ impl BencodeParser {
         c >= '0' && c <= '9'
     }
 
-    // TODO: Should probably return a Result<Bencode, E> instead
-    fn parse_int<'a>(iterator: &mut Peekable<impl Iterator<Item = &'a u8>>) -> Bencode {
+    fn parse_int<'a>(
+        iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
+    ) -> Result<Bencode, ParsingError> {
         let mut acc = Vec::new();
         while let Some(byte) = iterator.next() {
             match char::from_u32(*byte as u32) {
                 Some(c) if Self::is_digit(c) => acc.push(c),
                 Some('e') => break,
-                Some(c) => panic!("Invalid encoded value for numbers. Found {}", c),
-                None => {
-                    println!("End of line");
-                    break;
+                Some(c) => {
+                    return Err(ParsingError::new(format!(
+                        "invalid char '{}' when parsing numbers",
+                        c
+                    )))
                 }
+                None => break,
             }
         }
         let text_num: String = acc.iter().collect();
         let num: i64 = text_num.parse().unwrap();
-        return Bencode::Number(num);
+        return Ok(Bencode::Number(num));
     }
 }
 
@@ -84,7 +106,7 @@ mod tests {
     #[test]
     fn should_parse_integer_values() {
         let content = "i64520998877e".as_bytes().to_vec();
-        let result = BencodeParser::parse(&content);
+        let result = BencodeParser::decode(&content).unwrap();
         assert!(matches!(result, Bencode::Number(64520998877)));
     }
 
