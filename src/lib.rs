@@ -56,9 +56,7 @@ impl BencodeParser {
         while let Some(byte) = iterator.next() {
             match char::from_u32(*byte as u32) {
                 Some('i') => return Self::parse_int(iterator),
-                Some(c) if Self::is_digit(c) => {
-                    panic!("String handling not implemented")
-                }
+                Some(c) if Self::is_digit(c) => return Self::parse_str(c, iterator),
                 _ => panic!("Match arm not implemented yet"),
                 // Some('l') => println!("Starting a List"),
                 // Some('d') => println!("Starting a Dict"),
@@ -73,6 +71,38 @@ impl BencodeParser {
     /// Whether the given character is a valid number character
     fn is_digit(c: char) -> bool {
         c >= '0' && c <= '9'
+    }
+
+    fn parse_str<'a>(
+        length_start: char,
+        iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
+    ) -> Result<Bencode, ParsingError> {
+        let mut str_len = Vec::new();
+        str_len.push(length_start);
+        while let Some(byte) = iterator.next() {
+            match char::from_u32(*byte as u32) {
+                Some(c) if Self::is_digit(c) => str_len.push(c),
+                Some(c) if c == ':' => break,
+                Some(c) => {
+                    return Err(ParsingError::new(format!(
+                        "invalid string length character: '{}'",
+                        c
+                    )))
+                }
+                None => return Err(ParsingError::new(String::from("Invalid string value"))),
+            }
+        }
+
+        let str_len: String = str_len.iter().collect();
+        let str_len: i64 = str_len.parse().unwrap();
+        let mut str_value = Vec::new();
+
+        for _ in 0..str_len {
+            let byte = iterator.next().unwrap();
+            str_value.push(*byte);
+        }
+
+        Ok(Bencode::Text(ByteString(str_value)))
     }
 
     fn parse_int<'a>(
@@ -110,11 +140,12 @@ mod tests {
         assert!(matches!(result, Bencode::Number(64520998877)));
     }
 
-    // #[test]
-    // fn parse_torrent_file() {
-    //     let content = fs::read("ubuntu_iso.torrent").unwrap();
-    //     let meta_info = Bencode::parse(&content);
-    //     assert_eq!(1, 1);
-    //     // assert_eq!(meta_info.announce, "https://torrent.ubuntu.com/announce");
-    // }
+    #[test]
+    fn should_parse_string_values() {
+        let content = "5:bruno".as_bytes().to_vec();
+        let result = BencodeParser::decode(&content).unwrap();
+        let byte_str = ByteString("bruno".as_bytes().to_vec());
+
+        assert!(matches!(result, Bencode::Text(byte_str)))
+    }
 }
