@@ -3,6 +3,16 @@ use std::{collections::HashMap, fmt::Display, iter::Peekable, ops::Deref};
 #[derive(Debug)]
 pub struct ByteString(Vec<u8>);
 
+impl ByteString {
+    pub fn new(str: &str) -> Self {
+        Self(str.as_bytes().to_vec())
+    }
+
+    pub fn from_vec(vec: Vec<u8>) -> Self {
+        Self(vec)
+    }
+}
+
 impl Display for ByteString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Ok(text) = String::from_utf8(self.0.clone()) {
@@ -166,7 +176,7 @@ impl BencodeParser {
             str_value.push(*byte);
         }
 
-        Ok(Bencode::Text(ByteString(str_value)))
+        Ok(Bencode::Text(ByteString::from_vec(str_value)))
     }
 
     fn parse_int<'a>(
@@ -208,10 +218,9 @@ mod tests {
     #[test]
     fn should_parse_string_values() {
         let bencode_str = "6:bruno0".as_bytes().to_vec();
-        let str = "bruno0".as_bytes().to_vec();
         let result = BencodeParser::decode(&bencode_str).unwrap();
 
-        assert!(result == Bencode::Text(ByteString(str)));
+        assert!(result == Bencode::Text(ByteString::new("bruno0")));
     }
 
     #[test]
@@ -219,8 +228,8 @@ mod tests {
         let list = "l4:spam4:eggse".as_bytes().to_vec();
         let result = BencodeParser::decode(&list).unwrap();
         let expected = Bencode::List(vec![
-            Bencode::Text(ByteString("spam".as_bytes().to_vec())),
-            Bencode::Text(ByteString("eggs".as_bytes().to_vec())),
+            Bencode::Text(ByteString::new("spam")),
+            Bencode::Text(ByteString::new("eggs")),
         ]);
 
         assert!(result == expected);
@@ -231,7 +240,7 @@ mod tests {
         let list = "l4:spami55ee".as_bytes().to_vec();
         let result = BencodeParser::decode(&list).unwrap();
         let expected = Bencode::List(vec![
-            Bencode::Text(ByteString("spam".as_bytes().to_vec())),
+            Bencode::Text(ByteString::new("spam")),
             Bencode::Number(55),
         ]);
 
@@ -248,16 +257,16 @@ mod tests {
         println!("Result: {:?}", result);
 
         let expected = Bencode::List(vec![
-            Bencode::Text(ByteString("spam".as_bytes().to_vec())),
+            Bencode::Text(ByteString::new("spam")),
             Bencode::Number(55),
             Bencode::List(vec![
                 Bencode::Number(10),
                 Bencode::List(vec![
-                    Bencode::Text(ByteString("spam".as_bytes().to_vec())),
-                    Bencode::Text(ByteString("feet".as_bytes().to_vec())),
+                    Bencode::Text(ByteString::new("spam")),
+                    Bencode::Text(ByteString::new("feet")),
                     Bencode::Number(33),
                 ]),
-                Bencode::Text(ByteString("bruno".as_bytes().to_vec())),
+                Bencode::Text(ByteString::new("bruno")),
             ]),
         ]);
 
