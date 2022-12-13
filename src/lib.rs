@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display, iter::Peekable};
+use std::{collections::HashMap, fmt::Display, iter::Peekable, ops::Deref};
 
 #[derive(Debug)]
 pub struct ByteString(Vec<u8>);
@@ -12,6 +12,31 @@ impl Display for ByteString {
             // For raw strings, we can just display the raw bytes
             write!(f, "{:?}", self.0)
         }
+    }
+}
+
+impl ByteString {
+    fn compare_vectors(a: &Vec<u8>, b: &Vec<u8>) -> bool {
+        let matching = a.iter().zip(b.iter()).filter(|&(a, b)| a == b).count();
+        matching == a.len() && matching == b.len()
+    }
+}
+
+impl Deref for ByteString {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl PartialEq for ByteString {
+    fn eq(&self, other: &Self) -> bool {
+        Self::compare_vectors(self, other)
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        !Self::compare_vectors(self, other)
     }
 }
 
@@ -53,8 +78,8 @@ impl BencodeParser {
     fn parse<'a>(
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
     ) -> Result<Bencode, ParsingError> {
-        while let Some(byte) = iterator.next() {
-            match char::from_u32(*byte as u32) {
+        while let Some(&byte) = iterator.next() {
+            match char::from_u32(byte as u32) {
                 Some('i') => return Self::parse_int(iterator),
                 Some(c) if Self::is_digit(c) => return Self::parse_str(c, iterator),
                 _ => panic!("Match arm not implemented yet"),
@@ -79,8 +104,9 @@ impl BencodeParser {
     ) -> Result<Bencode, ParsingError> {
         let mut str_len = Vec::new();
         str_len.push(length_start);
-        while let Some(byte) = iterator.next() {
-            match char::from_u32(*byte as u32) {
+        // First we need to read the string length until we reach the `:`.
+        while let Some(&byte) = iterator.next() {
+            match char::from_u32(byte as u32) {
                 Some(c) if Self::is_digit(c) => str_len.push(c),
                 Some(c) if c == ':' => break,
                 Some(c) => {
@@ -93,6 +119,8 @@ impl BencodeParser {
             }
         }
 
+        // Now we know the string length, we can consume the iterator
+        // precisely to the point where the string ends.
         let str_len: String = str_len.iter().collect();
         let str_len: i64 = str_len.parse().unwrap();
         let mut str_value = Vec::new();
@@ -109,8 +137,8 @@ impl BencodeParser {
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
     ) -> Result<Bencode, ParsingError> {
         let mut acc = Vec::new();
-        while let Some(byte) = iterator.next() {
-            match char::from_u32(*byte as u32) {
+        while let Some(&byte) = iterator.next() {
+            match char::from_u32(byte as u32) {
                 Some(c) if Self::is_digit(c) => acc.push(c),
                 Some('e') => break,
                 Some(c) => {
@@ -144,8 +172,13 @@ mod tests {
     fn should_parse_string_values() {
         let content = "5:bruno".as_bytes().to_vec();
         let result = BencodeParser::decode(&content).unwrap();
-        let byte_str = ByteString("bruno".as_bytes().to_vec());
+        let expected = ByteString("bruno".as_bytes().to_vec());
 
-        assert!(matches!(result, Bencode::Text(byte_str)))
+        match result {
+            Bencode::Text(byte_str) => {
+                assert!(expected == byte_str)
+            }
+            _ => assert!(false),
+        }
     }
 }
