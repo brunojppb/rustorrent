@@ -30,6 +30,8 @@ impl Deref for ByteString {
     }
 }
 
+impl Eq for ByteString {}
+
 impl PartialEq for ByteString {
     fn eq(&self, other: &Self) -> bool {
         Self::compare_vectors(self, other)
@@ -40,7 +42,7 @@ impl PartialEq for ByteString {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Bencode {
     // Bencode text is always represented as byte strings
     Text(ByteString),
@@ -81,6 +83,7 @@ impl BencodeParser {
         while let Some(&byte) = iterator.next() {
             match char::from_u32(byte as u32) {
                 Some('i') => return Self::parse_int(iterator),
+                Some('l') => return Self::parse_list(iterator),
                 Some(c) if Self::is_digit(c) => return Self::parse_str(c, iterator),
                 _ => panic!("Match arm not implemented yet"),
                 // Some('l') => println!("Starting a List"),
@@ -91,6 +94,39 @@ impl BencodeParser {
         }
 
         Err(ParsingError::new(String::from("Invalid Bencode content")))
+    }
+
+    fn parse_list<'a>(
+        iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
+    ) -> Result<Bencode, ParsingError> {
+        let mut acc = Vec::new();
+        while let Some(&byte) = iterator.next() {
+            match char::from_u32(byte as u32) {
+                // nested list
+                Some('l') => {
+                    let list = Self::parse_list(iterator)?;
+                    acc.push(list);
+                }
+                // dictionary
+                Some('d') => panic!("Dictionary not handled yet"),
+                // integers
+                Some('i') => {
+                    let number = Self::parse_int(iterator)?;
+                    acc.push(number);
+                }
+                // strings
+                Some(c) if Self::is_digit(c) => {
+                    let str = Self::parse_str(c, iterator)?;
+                    acc.push(str);
+                }
+                // end of list, closing it
+                Some('e') => break,
+                Some(c) => return Err(ParsingError::new(format!("Invalid char {}", c))),
+                None => break,
+            }
+        }
+
+        Ok(Bencode::List(acc))
     }
 
     /// Whether the given character is a valid number character
@@ -163,22 +199,70 @@ mod tests {
 
     #[test]
     fn should_parse_integer_values() {
-        let content = "i64520998877e".as_bytes().to_vec();
+        let str = "64520998877";
+        let content = format!("i{}e", str).as_bytes().to_vec();
         let result = BencodeParser::decode(&content).unwrap();
-        assert!(matches!(result, Bencode::Number(64520998877)));
+        assert!(result == Bencode::Number(str.parse::<i64>().unwrap()));
     }
 
     #[test]
     fn should_parse_string_values() {
-        let content = "5:bruno".as_bytes().to_vec();
-        let result = BencodeParser::decode(&content).unwrap();
-        let expected = ByteString("bruno".as_bytes().to_vec());
+        let bencode_str = "6:bruno0".as_bytes().to_vec();
+        let str = "bruno0".as_bytes().to_vec();
+        let result = BencodeParser::decode(&bencode_str).unwrap();
 
-        match result {
-            Bencode::Text(byte_str) => {
-                assert!(expected == byte_str)
-            }
-            _ => assert!(false),
-        }
+        assert!(result == Bencode::Text(ByteString(str)));
+    }
+
+    #[test]
+    fn should_parse_list_of_strings() {
+        let list = "l4:spam4:eggse".as_bytes().to_vec();
+        let result = BencodeParser::decode(&list).unwrap();
+        let expected = Bencode::List(vec![
+            Bencode::Text(ByteString("spam".as_bytes().to_vec())),
+            Bencode::Text(ByteString("eggs".as_bytes().to_vec())),
+        ]);
+
+        assert!(result == expected);
+    }
+
+    #[test]
+    fn should_parse_list_of_strings_and_integers() {
+        let list = "l4:spami55ee".as_bytes().to_vec();
+        let result = BencodeParser::decode(&list).unwrap();
+        let expected = Bencode::List(vec![
+            Bencode::Text(ByteString("spam".as_bytes().to_vec())),
+            Bencode::Number(55),
+        ]);
+
+        assert!(result == expected);
+    }
+
+    #[test]
+    fn should_parse_lists_recursively() {
+        let list = "l4:spami55eli10el4:spam4:feeti33ee5:brunoee"
+            .as_bytes()
+            .to_vec();
+        let result = BencodeParser::decode(&list).unwrap();
+
+        println!("Result: {:?}", result);
+
+        let expected = Bencode::List(vec![
+            Bencode::Text(ByteString("spam".as_bytes().to_vec())),
+            Bencode::Number(55),
+            Bencode::List(vec![
+                Bencode::Number(10),
+                Bencode::List(vec![
+                    Bencode::Text(ByteString("spam".as_bytes().to_vec())),
+                    Bencode::Text(ByteString("feet".as_bytes().to_vec())),
+                    Bencode::Number(33),
+                ]),
+                Bencode::Text(ByteString("bruno".as_bytes().to_vec())),
+            ]),
+        ]);
+
+        println!("Expected: {:?}", expected);
+
+        assert!(result == expected);
     }
 }
