@@ -1,6 +1,6 @@
-use std::{fmt::Display, ops::Deref};
+use std::{fmt::Display, hash::Hash, ops::Deref};
 
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct ByteString(Vec<u8>);
 
 impl ByteString {

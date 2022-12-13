@@ -7,7 +7,7 @@ pub enum Bencode {
     Text(ByteString),
     Number(i64),
     List(Vec<Self>),
-    Dict(HashMap<String, Self>),
+    Dict(HashMap<ByteString, Self>),
 }
 
 #[derive(Debug, Clone)]
@@ -43,16 +43,55 @@ impl BencodeParser {
             match char::from_u32(byte as u32) {
                 Some('i') => return Self::parse_int(iterator),
                 Some('l') => return Self::parse_list(iterator),
+                Some('d') => return Self::parse_dict(iterator),
                 Some(c) if Self::is_digit(c) => return Self::parse_str(c, iterator),
-                _ => panic!("Match arm not implemented yet"),
-                // Some('l') => println!("Starting a List"),
-                // Some('d') => println!("Starting a Dict"),
-                // Some(c) => println!("Continue value {}", c),
-                // None => println!("Got nothing from {}", byte),
+                Some(c) => {
+                    return Err(ParsingError::new(format!(
+                        "Invalid byte for bencode value: '{}'",
+                        c
+                    )))
+                }
+                None => {
+                    return Err(ParsingError::new(
+                        "Empty bytes while trying to parse bencode value".to_string(),
+                    ))
+                }
             }
         }
 
         Err(ParsingError::new(String::from("Invalid Bencode content")))
+    }
+
+    fn parse_dict<'a>(
+        iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
+    ) -> Result<Bencode, ParsingError> {
+        let mut map = HashMap::new();
+
+        while let Some(&byte) = iterator.next() {
+            match char::from_u32(byte as u32) {
+                Some(c) if Self::is_digit(c) => {
+                    // we first handle the dictionary key
+                    if let Bencode::Text(text) = Self::parse_str(c, iterator)? {
+                        // Value can be anything, including dictionaries
+                        let value = Self::parse(iterator)?;
+                        map.insert(text, value);
+                    } else {
+                        return Err(ParsingError::new(format!("Invalid string byte {}", c)));
+                    }
+                }
+                // Closing the dictionary
+                Some('e') => break,
+                Some(c) => {
+                    return Err(ParsingError::new(format!(
+                        "Invalid string byte for dict length {}",
+                        c
+                    )))
+                }
+                None => return Err(ParsingError::new("Empty byte for dict key".to_string())),
+            }
+        }
+
+        Ok(Bencode::Dict(map))
     }
 
     fn parse_list<'a>(
@@ -203,8 +242,6 @@ mod tests {
             .to_vec();
         let result = BencodeParser::decode(&list).unwrap();
 
-        println!("Result: {:?}", result);
-
         let expected = Bencode::List(vec![
             Bencode::Text(ByteString::new("spam")),
             Bencode::Number(55),
@@ -218,6 +255,65 @@ mod tests {
                 Bencode::Text(ByteString::new("bruno")),
             ]),
         ]);
+
+        assert!(result == expected);
+    }
+
+    #[test]
+    fn should_parse_dictionary() {
+        let list =
+            "d9:publisher3:bob17:publisher-webpage15:www.example.com18:publisher.location4:home13:publisher.agei33ee"
+                .as_bytes()
+                .to_vec();
+        let result = BencodeParser::decode(&list).unwrap();
+
+        println!("Result: {:?}", result);
+
+        let expected = Bencode::Dict(HashMap::from([
+            (
+                ByteString::new("publisher"),
+                Bencode::Text(ByteString::new("bob")),
+            ),
+            (
+                ByteString::new("publisher-webpage"),
+                Bencode::Text(ByteString::new("www.example.com")),
+            ),
+            (
+                ByteString::new("publisher.location"),
+                Bencode::Text(ByteString::new("home")),
+            ),
+            (ByteString::new("publisher.age"), Bencode::Number(33)),
+        ]));
+
+        println!("Expected: {:?}", expected);
+
+        assert!(result == expected);
+    }
+
+    #[test]
+    fn should_parse_nested_dictionaries() {
+        let list = "d3:cow3:moo4:spam4:eggs4:home6:vienna3:agei33ee"
+            .as_bytes()
+            .to_vec();
+        let result = BencodeParser::decode(&list).unwrap();
+
+        println!("Result: {:?}", result);
+
+        let expected = Bencode::Dict(HashMap::from([
+            (
+                ByteString::new("cow"),
+                Bencode::Text(ByteString::new("moo")),
+            ),
+            (
+                ByteString::new("spam"),
+                Bencode::Text(ByteString::new("eggs")),
+            ),
+            (
+                ByteString::new("home"),
+                Bencode::Text(ByteString::new("vienna")),
+            ),
+            (ByteString::new("age"), Bencode::Number(33)),
+        ]));
 
         println!("Expected: {:?}", expected);
 
