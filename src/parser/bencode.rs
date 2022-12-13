@@ -292,7 +292,7 @@ mod tests {
 
     #[test]
     fn should_parse_nested_dictionaries() {
-        let list = "d3:cow3:moo4:spam4:eggs4:home6:vienna3:agei33ee"
+        let list = "d3:cow3:moo4:spam4:eggs4:home6:vienna3:agei33e4:lifed6:can.be7:amazingee"
             .as_bytes()
             .to_vec();
         let result = BencodeParser::decode(&list).unwrap();
@@ -313,6 +313,13 @@ mod tests {
                 Bencode::Text(ByteString::new("vienna")),
             ),
             (ByteString::new("age"), Bencode::Number(33)),
+            (
+                ByteString::new("life"),
+                Bencode::Dict(HashMap::from([(
+                    ByteString::new("can.be"),
+                    Bencode::Text(ByteString::new("amazing")),
+                )])),
+            ),
         ]));
 
         println!("Expected: {:?}", expected);
