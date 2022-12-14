@@ -83,7 +83,7 @@ impl BencodeParser {
                 Some('e') => break,
                 Some(c) => {
                     return Err(ParsingError::new(format!(
-                        "Invalid string byte for dict length {}",
+                        "Invalid string byte for dict length '{}'",
                         c
                     )))
                 }
@@ -106,7 +106,10 @@ impl BencodeParser {
                     acc.push(list);
                 }
                 // dictionary
-                Some('d') => panic!("Dictionary not handled yet"),
+                Some('d') => {
+                    let dict = Self::parse_dict(iterator)?;
+                    acc.push(dict);
+                }
                 // integers
                 Some('i') => {
                     let number = Self::parse_int(iterator)?;
@@ -260,6 +263,44 @@ mod tests {
     }
 
     #[test]
+    fn should_parse_all_value_types_within_a_list() {
+        // Readable list
+        // let list = r#"
+        //   l
+        //     i32e
+        //     5:bruno
+        //     d
+        //       4:life
+        //       7:is-good
+        //       3:age
+        //       i64e
+        //     e
+        //   e
+        // "#;
+        let list = "li32e5:brunod4:life7:is-good3:agei64eee"
+            .as_bytes()
+            .to_vec();
+        let result = BencodeParser::decode(&list).unwrap();
+
+        let expected = Bencode::List(vec![
+            Bencode::Number(32),
+            Bencode::Text(ByteString::new("bruno")),
+            Bencode::Dict(HashMap::from([
+                (
+                    ByteString::new("life"),
+                    Bencode::Text(ByteString::new("is-good")),
+                ),
+                (ByteString::new("age"), Bencode::Number(64)),
+            ])),
+        ]);
+
+        println!("RES: {:?}", result);
+        println!("EXP: {:?}", expected);
+
+        assert!(result == expected);
+    }
+
+    #[test]
     fn should_parse_dictionary() {
         let list =
             "d9:publisher3:bob17:publisher-webpage15:www.example.com18:publisher.location4:home13:publisher.agei33ee"
@@ -297,8 +338,6 @@ mod tests {
             .to_vec();
         let result = BencodeParser::decode(&list).unwrap();
 
-        println!("Result: {:?}", result);
-
         let expected = Bencode::Dict(HashMap::from([
             (
                 ByteString::new("cow"),
@@ -321,8 +360,6 @@ mod tests {
                 )])),
             ),
         ]));
-
-        println!("Expected: {:?}", expected);
 
         assert!(result == expected);
     }
