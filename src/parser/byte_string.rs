@@ -22,7 +22,7 @@ impl ByteString {
             write!(f, "{}", text)
         } else {
             // For raw strings, we can just display the raw bytes
-            write!(f, "{:?}", self.0)
+            write!(f, "bytes_length:{:?}", self.0.len())
         }
     }
 }

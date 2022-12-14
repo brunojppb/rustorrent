@@ -306,9 +306,6 @@ mod tests {
             ])),
         ]);
 
-        println!("RES: {:?}", result);
-        println!("EXP: {:?}", expected);
-
         assert_eq!(result, expected);
     }
 
@@ -319,8 +316,6 @@ mod tests {
                 .as_bytes()
                 .to_vec();
         let result = BencodeParser::decode(&list).unwrap();
-
-        println!("Result: {:?}", result);
 
         let expected = Bencode::Dict(HashMap::from([
             (
@@ -338,13 +333,11 @@ mod tests {
             (ByteString::new("publisher.age"), Bencode::Number(33)),
         ]));
 
-        println!("Expected: {:?}", expected);
-
         assert_eq!(result, expected);
     }
 
     #[test]
-    fn should_parse_nested_dictionaries() {
+    fn should_parse_dictionaries_recursively() {
         let list = "d3:cow3:moo4:spam4:eggs4:home6:vienna3:agei33e4:lifed6:can.be7:amazingee"
             .as_bytes()
             .to_vec();
