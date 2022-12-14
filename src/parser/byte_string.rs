@@ -16,6 +16,11 @@ impl ByteString {
         Self(vec)
     }
 
+    fn compare_vectors(a: &Vec<u8>, b: &Vec<u8>) -> bool {
+        let matching = a.iter().zip(b.iter()).filter(|&(a, b)| a == b).count();
+        matching == a.len() && matching == b.len()
+    }
+
     fn print(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Ok(text) = String::from_utf8(self.0.clone()) {
             // For strings that are UTF-8 encoded, we can safely format them
@@ -36,13 +41,6 @@ impl Debug for ByteString {
 impl Display for ByteString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.print(f)
-    }
-}
-
-impl ByteString {
-    fn compare_vectors(a: &Vec<u8>, b: &Vec<u8>) -> bool {
-        let matching = a.iter().zip(b.iter()).filter(|&(a, b)| a == b).count();
-        matching == a.len() && matching == b.len()
     }
 }
 
