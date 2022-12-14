@@ -274,10 +274,15 @@ mod tests {
         //       7:is-good
         //       3:age
         //       i64e
+        //       4:list
+        //       l
+        //         i32e
+        //         4:cool
+        //       e
         //     e
         //   e
         // "#;
-        let list = "li32e5:brunod4:life7:is-good3:agei64eee"
+        let list = "li32e5:brunod4:life7:is-good3:agei64e4:listli32e4:cooleee"
             .as_bytes()
             .to_vec();
         let result = BencodeParser::decode(&list).unwrap();
@@ -291,6 +296,13 @@ mod tests {
                     Bencode::Text(ByteString::new("is-good")),
                 ),
                 (ByteString::new("age"), Bencode::Number(64)),
+                (
+                    ByteString::new("list"),
+                    Bencode::List(vec![
+                        Bencode::Number(32),
+                        Bencode::Text(ByteString::new("cool")),
+                    ]),
+                ),
             ])),
         ]);
 
