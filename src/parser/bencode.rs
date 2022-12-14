@@ -203,7 +203,7 @@ mod tests {
         let str = "64520998877";
         let content = format!("i{}e", str).as_bytes().to_vec();
         let result = BencodeParser::decode(&content).unwrap();
-        assert!(result == Bencode::Number(str.parse::<i64>().unwrap()));
+        assert_eq!(result, Bencode::Number(str.parse::<i64>().unwrap()));
     }
 
     #[test]
@@ -211,7 +211,7 @@ mod tests {
         let bencode_str = "6:bruno0".as_bytes().to_vec();
         let result = BencodeParser::decode(&bencode_str).unwrap();
 
-        assert!(result == Bencode::Text(ByteString::new("bruno0")));
+        assert_eq!(result, Bencode::Text(ByteString::new("bruno0")));
     }
 
     #[test]
@@ -223,7 +223,7 @@ mod tests {
             Bencode::Text(ByteString::new("eggs")),
         ]);
 
-        assert!(result == expected);
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -235,7 +235,7 @@ mod tests {
             Bencode::Number(55),
         ]);
 
-        assert!(result == expected);
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -259,7 +259,7 @@ mod tests {
             ]),
         ]);
 
-        assert!(result == expected);
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -309,7 +309,7 @@ mod tests {
         println!("RES: {:?}", result);
         println!("EXP: {:?}", expected);
 
-        assert!(result == expected);
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -340,7 +340,7 @@ mod tests {
 
         println!("Expected: {:?}", expected);
 
-        assert!(result == expected);
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -373,6 +373,6 @@ mod tests {
             ),
         ]));
 
-        assert!(result == expected);
+        assert_eq!(result, expected);
     }
 }
