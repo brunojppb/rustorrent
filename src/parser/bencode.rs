@@ -158,16 +158,22 @@ impl BencodeParser {
 
         // Now we know the string length, we can consume the iterator
         // precisely to the point where the string ends.
-        let str_len: String = str_len.iter().collect();
-        let str_len: i64 = str_len.parse().unwrap();
-        let mut str_value = Vec::new();
+        match str_len.iter().collect::<String>().parse::<i64>() {
+            Ok(str_len) => {
+                let mut str_value = Vec::new();
 
-        for _ in 0..str_len {
-            let byte = iterator.next().unwrap();
-            str_value.push(*byte);
+                for _ in 0..str_len {
+                    let byte = iterator.next().unwrap();
+                    str_value.push(*byte);
+                }
+
+                Ok(Bencode::Text(ByteString::from_vec(str_value)))
+            }
+            Err(_) => Err(ParsingError::new(format!(
+                "Invalid string length '{:?}'",
+                str_len
+            ))),
         }
-
-        Ok(Bencode::Text(ByteString::from_vec(str_value)))
     }
 
     fn parse_int<'a>(
