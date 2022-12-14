@@ -1,6 +1,10 @@
-use std::{fmt::Display, hash::Hash, ops::Deref};
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash,
+    ops::Deref,
+};
 
-#[derive(Debug, Hash)]
+#[derive(Hash)]
 pub struct ByteString(Vec<u8>);
 
 impl ByteString {
@@ -11,10 +15,8 @@ impl ByteString {
     pub fn from_vec(vec: Vec<u8>) -> Self {
         Self(vec)
     }
-}
 
-impl Display for ByteString {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn print(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Ok(text) = String::from_utf8(self.0.clone()) {
             // For strings that are UTF-8 encoded, we can safely format them
             write!(f, "{}", text)
@@ -22,6 +24,18 @@ impl Display for ByteString {
             // For raw strings, we can just display the raw bytes
             write!(f, "{:?}", self.0)
         }
+    }
+}
+
+impl Debug for ByteString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.print(f)
+    }
+}
+
+impl Display for ByteString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.print(f)
     }
 }
 
