@@ -1,5 +1,5 @@
 use crate::parser::byte_string::ByteString;
-use std::{collections::HashMap, fmt::Display, iter::Peekable};
+use std::{collections::HashMap, fmt::Display, fs, iter::Peekable};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Bencode {
@@ -34,6 +34,14 @@ impl BencodeParser {
     pub fn decode(raw_content: &Vec<u8>) -> Result<Bencode, ParsingError> {
         let mut iterator = raw_content.iter().peekable();
         Self::parse(&mut iterator)
+    }
+
+    pub fn from_file(path: &str) -> Result<Bencode, ParsingError> {
+        let bytes = fs::read(path);
+        match bytes {
+            Ok(bytes) => Self::decode(&bytes),
+            _ => Err(ParsingError::new("invalid file contents".to_string())),
+        }
     }
 
     fn parse<'a>(
