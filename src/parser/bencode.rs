@@ -7,7 +7,7 @@ pub enum Bencode {
     Text(ByteString),
     Number(u64),
     List(Vec<Self>),
-    Dict(HashMap<ByteString, Self>),
+    Dict(HashMap<String, Self>),
 }
 
 #[derive(Debug, Clone)]
@@ -82,7 +82,7 @@ impl BencodeParser {
                     if let Bencode::Text(text) = Self::parse_str(c, iterator)? {
                         // Value can be anything, including dictionaries
                         let value = Self::parse(iterator)?;
-                        map.insert(text, value);
+                        map.insert(text.to_string(), value);
                     } else {
                         return Err(ParsingError::new(format!("Invalid string byte {}", c)));
                     }
@@ -310,12 +310,12 @@ mod tests {
             Bencode::Text(ByteString::new("bruno")),
             Bencode::Dict(HashMap::from([
                 (
-                    ByteString::new("life"),
+                    "life".to_string(),
                     Bencode::Text(ByteString::new("is-good")),
                 ),
-                (ByteString::new("age"), Bencode::Number(64)),
+                ("age".to_string(), Bencode::Number(64)),
                 (
-                    ByteString::new("list"),
+                    "list".to_string(),
                     Bencode::List(vec![
                         Bencode::Number(32),
                         Bencode::Text(ByteString::new("cool")),
@@ -337,18 +337,18 @@ mod tests {
 
         let expected = Bencode::Dict(HashMap::from([
             (
-                ByteString::new("publisher"),
+                "publisher".to_string(),
                 Bencode::Text(ByteString::new("bob")),
             ),
             (
-                ByteString::new("publisher-webpage"),
+                "publisher-webpage".to_string(),
                 Bencode::Text(ByteString::new("www.example.com")),
             ),
             (
-                ByteString::new("publisher.location"),
+                "publisher.location".to_string(),
                 Bencode::Text(ByteString::new("home")),
             ),
-            (ByteString::new("publisher.age"), Bencode::Number(33)),
+            ("publisher.age".to_string(), Bencode::Number(33)),
         ]));
 
         assert_eq!(result, expected);
@@ -362,23 +362,14 @@ mod tests {
         let result = BencodeParser::decode(&list).unwrap();
 
         let expected = Bencode::Dict(HashMap::from([
+            ("cow".to_string(), Bencode::Text(ByteString::new("moo"))),
+            ("spam".to_string(), Bencode::Text(ByteString::new("eggs"))),
+            ("home".to_string(), Bencode::Text(ByteString::new("vienna"))),
+            ("age".to_string(), Bencode::Number(33)),
             (
-                ByteString::new("cow"),
-                Bencode::Text(ByteString::new("moo")),
-            ),
-            (
-                ByteString::new("spam"),
-                Bencode::Text(ByteString::new("eggs")),
-            ),
-            (
-                ByteString::new("home"),
-                Bencode::Text(ByteString::new("vienna")),
-            ),
-            (ByteString::new("age"), Bencode::Number(33)),
-            (
-                ByteString::new("life"),
+                "life".to_string(),
                 Bencode::Dict(HashMap::from([(
-                    ByteString::new("can.be"),
+                    "can.be".to_string(),
                     Bencode::Text(ByteString::new("amazing")),
                 )])),
             ),
