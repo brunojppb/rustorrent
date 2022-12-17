@@ -1,4 +1,5 @@
-use crate::parser::byte_string::ByteString;
+use super::bencode::BencodeError;
+use super::byte_string::ByteString;
 
 /// Meta-info files (.torrent) according to the (unofficial) spec.
 /// See: https://wiki.theory.org/BitTorrentSpecification#Metainfo_File_Structure
@@ -57,4 +58,11 @@ pub struct File {
     /// elements: "dir1", "dir2", and "file.ext". This is encoded as a bencoded list
     /// of strings such as 'l4:dir14:dir28:file.exte'
     pub path: String,
+}
+
+impl MetaInfo {
+    /// decode .torrent files as a readable metainfo data structure
+    pub fn from_file(_path: &str) -> Result<Self, BencodeError> {
+        panic!("missing impl")
+    }
 }

@@ -11,17 +11,17 @@ pub enum Bencode {
 }
 
 #[derive(Debug, Clone)]
-pub struct ParsingError {
+pub struct BencodeError {
     message: String,
 }
 
-impl ParsingError {
+impl BencodeError {
     fn new(message: String) -> Self {
         Self { message }
     }
 }
 
-impl Display for ParsingError {
+impl Display for BencodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.message)
     }
@@ -31,22 +31,22 @@ pub struct BencodeParser;
 
 impl BencodeParser {
     /// Parse the given raw content to a Bencode value
-    pub fn decode(raw_content: &Vec<u8>) -> Result<Bencode, ParsingError> {
+    pub fn decode(raw_content: &Vec<u8>) -> Result<Bencode, BencodeError> {
         let mut iterator = raw_content.iter().peekable();
         Self::parse(&mut iterator)
     }
 
-    pub fn from_file(path: &str) -> Result<Bencode, ParsingError> {
+    pub fn from_file(path: &str) -> Result<Bencode, BencodeError> {
         let bytes = fs::read(path);
         match bytes {
             Ok(bytes) => Self::decode(&bytes),
-            _ => Err(ParsingError::new("invalid file contents".to_string())),
+            _ => Err(BencodeError::new("invalid file contents".to_string())),
         }
     }
 
     fn parse<'a>(
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
-    ) -> Result<Bencode, ParsingError> {
+    ) -> Result<Bencode, BencodeError> {
         while let Some(&byte) = iterator.next() {
             match char::from_u32(byte as u32) {
                 Some('i') => return Self::parse_int(iterator),
@@ -54,25 +54,25 @@ impl BencodeParser {
                 Some('d') => return Self::parse_dict(iterator),
                 Some(c) if Self::is_digit(c) => return Self::parse_str(c, iterator),
                 Some(c) => {
-                    return Err(ParsingError::new(format!(
+                    return Err(BencodeError::new(format!(
                         "Invalid byte for bencode value: '{}'",
                         c
                     )))
                 }
                 None => {
-                    return Err(ParsingError::new(
+                    return Err(BencodeError::new(
                         "Empty bytes while trying to parse bencode value".to_string(),
                     ))
                 }
             }
         }
 
-        Err(ParsingError::new(String::from("Invalid Bencode content")))
+        Err(BencodeError::new(String::from("Invalid Bencode content")))
     }
 
     fn parse_dict<'a>(
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
-    ) -> Result<Bencode, ParsingError> {
+    ) -> Result<Bencode, BencodeError> {
         let mut map = HashMap::new();
 
         while let Some(&byte) = iterator.next() {
@@ -84,18 +84,18 @@ impl BencodeParser {
                         let value = Self::parse(iterator)?;
                         map.insert(text.to_string(), value);
                     } else {
-                        return Err(ParsingError::new(format!("Invalid string byte {}", c)));
+                        return Err(BencodeError::new(format!("Invalid string byte {}", c)));
                     }
                 }
                 // Closing the dictionary
                 Some('e') => break,
                 Some(c) => {
-                    return Err(ParsingError::new(format!(
+                    return Err(BencodeError::new(format!(
                         "Invalid string byte for dict length '{}'",
                         c
                     )))
                 }
-                None => return Err(ParsingError::new("Empty byte for dict key".to_string())),
+                None => return Err(BencodeError::new("Empty byte for dict key".to_string())),
             }
         }
 
@@ -104,7 +104,7 @@ impl BencodeParser {
 
     fn parse_list<'a>(
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
-    ) -> Result<Bencode, ParsingError> {
+    ) -> Result<Bencode, BencodeError> {
         let mut acc = Vec::new();
         while let Some(&byte) = iterator.next() {
             match char::from_u32(byte as u32) {
@@ -130,7 +130,7 @@ impl BencodeParser {
                 }
                 // end of list, closing it
                 Some('e') => break,
-                Some(c) => return Err(ParsingError::new(format!("Invalid char {}", c))),
+                Some(c) => return Err(BencodeError::new(format!("Invalid char {}", c))),
                 None => break,
             }
         }
@@ -146,7 +146,7 @@ impl BencodeParser {
     fn parse_str<'a>(
         length_start: char,
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
-    ) -> Result<Bencode, ParsingError> {
+    ) -> Result<Bencode, BencodeError> {
         let mut str_len = Vec::new();
         str_len.push(length_start);
         // First we need to read the string length until we reach the `:`.
@@ -155,12 +155,12 @@ impl BencodeParser {
                 Some(c) if Self::is_digit(c) => str_len.push(c),
                 Some(c) if c == ':' => break,
                 Some(c) => {
-                    return Err(ParsingError::new(format!(
+                    return Err(BencodeError::new(format!(
                         "invalid string length character: '{}'",
                         c
                     )))
                 }
-                None => return Err(ParsingError::new(String::from("Invalid string value"))),
+                None => return Err(BencodeError::new(String::from("Invalid string value"))),
             }
         }
 
@@ -176,7 +176,7 @@ impl BencodeParser {
 
                 Ok(Bencode::Text(ByteString::from_vec(str_value)))
             }
-            Err(_) => Err(ParsingError::new(format!(
+            Err(_) => Err(BencodeError::new(format!(
                 "Invalid string length '{:?}'",
                 str_len
             ))),
@@ -185,14 +185,14 @@ impl BencodeParser {
 
     fn parse_int<'a>(
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
-    ) -> Result<Bencode, ParsingError> {
+    ) -> Result<Bencode, BencodeError> {
         let mut acc = Vec::new();
         while let Some(&byte) = iterator.next() {
             match char::from_u32(byte as u32) {
                 Some(c) if Self::is_digit(c) => acc.push(c),
                 Some('e') => break,
                 Some(c) => {
-                    return Err(ParsingError::new(format!(
+                    return Err(BencodeError::new(format!(
                         "invalid char '{}' when parsing integers",
                         c
                     )))
@@ -204,7 +204,7 @@ impl BencodeParser {
         text_num
             .parse::<u64>()
             .map(|int| Bencode::Number(int))
-            .or(Err(ParsingError::new(format!(
+            .or(Err(BencodeError::new(format!(
                 "invalid integer value '{}'",
                 text_num
             ))))
