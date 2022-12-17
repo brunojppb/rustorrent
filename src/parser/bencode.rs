@@ -5,7 +5,7 @@ use std::{collections::HashMap, fmt::Display, fs, iter::Peekable};
 pub enum Bencode {
     // Bencode text is always represented as byte strings
     Text(ByteString),
-    Number(i64),
+    Number(u64),
     List(Vec<Self>),
     Dict(HashMap<ByteString, Self>),
 }
@@ -166,12 +166,11 @@ impl BencodeParser {
 
         // Now we know the string length, we can consume the iterator
         // precisely to the point where the string ends.
-        match str_len.iter().collect::<String>().parse::<i64>() {
+        match str_len.iter().collect::<String>().parse::<u64>() {
             Ok(str_len) => {
                 let mut str_value = Vec::new();
 
-                for _ in 0..str_len {
-                    let byte = iterator.next().unwrap();
+                for byte in iterator.take(str_len as usize) {
                     str_value.push(*byte);
                 }
 
@@ -194,7 +193,7 @@ impl BencodeParser {
                 Some('e') => break,
                 Some(c) => {
                     return Err(ParsingError::new(format!(
-                        "invalid char '{}' when parsing numbers",
+                        "invalid char '{}' when parsing integers",
                         c
                     )))
                 }
@@ -202,8 +201,13 @@ impl BencodeParser {
             }
         }
         let text_num: String = acc.iter().collect();
-        let num: i64 = text_num.parse().unwrap();
-        return Ok(Bencode::Number(num));
+        text_num
+            .parse::<u64>()
+            .map(|int| Bencode::Number(int))
+            .or(Err(ParsingError::new(format!(
+                "invalid integer value '{}'",
+                text_num
+            ))))
     }
 }
 
@@ -217,7 +221,7 @@ mod tests {
         let str = "64520998877";
         let content = format!("i{}e", str).as_bytes().to_vec();
         let result = BencodeParser::decode(&content).unwrap();
-        assert_eq!(result, Bencode::Number(str.parse::<i64>().unwrap()));
+        assert_eq!(result, Bencode::Number(str.parse::<u64>().unwrap()));
     }
 
     #[test]
