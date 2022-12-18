@@ -4,7 +4,7 @@ use std::{
     ops::Deref,
 };
 
-#[derive(Hash)]
+#[derive(Hash, Clone)]
 pub struct ByteString(Vec<u8>);
 
 impl ByteString {
