@@ -1,11 +1,11 @@
 # Rustorrent
 
-A Bitorrent client built with Rust. This is mostly a learning project
+A BitTorrent client built with Rust. This is mostly a learning project
 for me to flex my Rust muscles, so don't take it too seriously.
 
 ## Features
 
-- [ ] [Bencoding](https://www.bittorrent.org/beps/bep_0003.html) parser to support `.torrent` files
+- [x] [Bencoding](https://www.bittorrent.org/beps/bep_0003.html) parser to support `.torrent` files
 - [ ] Connect to trackers
 - [ ] Connect to peers
 - [ ] Download files
