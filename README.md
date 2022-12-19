@@ -1,3 +1,5 @@
+![Rust CI](https://github.com/brunojppb/rustorrent/actions/workflows/ci.yml/badge.svg)
+
 # Rustorrent
 
 A BitTorrent client built with Rust. This is mostly a learning project
