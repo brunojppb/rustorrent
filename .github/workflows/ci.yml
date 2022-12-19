@@ -1,10 +1,10 @@
 on: [push]
 
-name: CI
+name: Rust CI
 
 jobs:
   build_and_test:
-    name: Rust project
+    name: Cargo Test
     runs-on: ubuntu-latest
     steps:
       - name: "Git checkout"
