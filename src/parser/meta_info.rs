@@ -106,8 +106,7 @@ impl Info {
                     let private = info_dict
                         .get("private")
                         .map(|v| &Bencode::Number(1) == v)
-                        .or(Some(false))
-                        .unwrap();
+                        .unwrap_or_else(|| false);
                     let file_info = Self::parse_file_info(info_dict)?;
                     return Ok(Self {
                         piece_length: piece_length.clone(),
@@ -191,22 +190,23 @@ pub struct MultiFileItem {
     /// For example, a the file "dir1/dir2/file.ext" would consist of three string
     /// elements: "dir1", "dir2", and "file.ext". This is encoded as a bencoded list
     /// of strings such as 'l4:dir14:dir28:file.exte'
-    pub path: String,
+    pub path: Vec<String>,
 }
 
 impl MultiFileItem {
     fn from(dict: &Dict) -> Result<Self, BencodeError> {
-        if let Bencode::Text(path) = get_value("path", dict)? {
+        if let Some(path) = get_opt_str_list("path", dict) {
             if let Bencode::Number(length) = get_value("length", dict)? {
                 let md5sum = get_optional_str("md5sum", dict);
                 return Ok(Self {
                     length: length.clone(),
-                    path: path.to_string(),
+                    path,
                     md5sum,
                 });
             }
         }
-        Err(parsing_error("invalid file item"))
+
+        Err(parsing_error(&format!("invalid file item: {:?}", dict)))
     }
 }
 
@@ -235,6 +235,21 @@ impl SingleFile {
 
         Err(parsing_error("invalid file"))
     }
+}
+
+fn get_opt_str_list(key: &str, dict: &Dict) -> Option<Vec<String>> {
+    dict.get(key).and_then(|v| match v {
+        Bencode::List(list) => {
+            let mut values = Vec::with_capacity(list.len());
+            for code in list.iter() {
+                if let Bencode::Text(str) = code {
+                    values.push(str.to_string());
+                }
+            }
+            Some(values)
+        }
+        _ => None,
+    })
 }
 
 fn get_optional_str(key: &str, dict: &Dict) -> Option<String> {
