@@ -1,27 +1,27 @@
 use crate::parser::byte_string::ByteString;
-use std::{collections::HashMap, fmt::Display, iter::Peekable};
+use std::{collections::HashMap, fmt::Display, fs, iter::Peekable};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Bencode {
     // Bencode text is always represented as byte strings
     Text(ByteString),
-    Number(i64),
+    Number(u64),
     List(Vec<Self>),
-    Dict(HashMap<ByteString, Self>),
+    Dict(HashMap<String, Self>),
 }
 
 #[derive(Debug, Clone)]
-pub struct ParsingError {
+pub struct BencodeError {
     message: String,
 }
 
-impl ParsingError {
-    fn new(message: String) -> Self {
+impl BencodeError {
+    pub fn new(message: String) -> Self {
         Self { message }
     }
 }
 
-impl Display for ParsingError {
+impl Display for BencodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.message)
     }
@@ -31,14 +31,22 @@ pub struct BencodeParser;
 
 impl BencodeParser {
     /// Parse the given raw content to a Bencode value
-    pub fn decode(raw_content: &Vec<u8>) -> Result<Bencode, ParsingError> {
+    pub fn decode(raw_content: &Vec<u8>) -> Result<Bencode, BencodeError> {
         let mut iterator = raw_content.iter().peekable();
         Self::parse(&mut iterator)
     }
 
+    pub fn from_file(path: &str) -> Result<Bencode, BencodeError> {
+        let bytes = fs::read(path);
+        match bytes {
+            Ok(bytes) => Self::decode(&bytes),
+            _ => Err(BencodeError::new("invalid file contents".to_string())),
+        }
+    }
+
     fn parse<'a>(
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
-    ) -> Result<Bencode, ParsingError> {
+    ) -> Result<Bencode, BencodeError> {
         while let Some(&byte) = iterator.next() {
             match char::from_u32(byte as u32) {
                 Some('i') => return Self::parse_int(iterator),
@@ -46,25 +54,25 @@ impl BencodeParser {
                 Some('d') => return Self::parse_dict(iterator),
                 Some(c) if Self::is_digit(c) => return Self::parse_str(c, iterator),
                 Some(c) => {
-                    return Err(ParsingError::new(format!(
+                    return Err(BencodeError::new(format!(
                         "Invalid byte for bencode value: '{}'",
                         c
                     )))
                 }
                 None => {
-                    return Err(ParsingError::new(
+                    return Err(BencodeError::new(
                         "Empty bytes while trying to parse bencode value".to_string(),
                     ))
                 }
             }
         }
 
-        Err(ParsingError::new(String::from("Invalid Bencode content")))
+        Err(BencodeError::new(String::from("Invalid Bencode content")))
     }
 
     fn parse_dict<'a>(
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
-    ) -> Result<Bencode, ParsingError> {
+    ) -> Result<Bencode, BencodeError> {
         let mut map = HashMap::new();
 
         while let Some(&byte) = iterator.next() {
@@ -74,20 +82,20 @@ impl BencodeParser {
                     if let Bencode::Text(text) = Self::parse_str(c, iterator)? {
                         // Value can be anything, including dictionaries
                         let value = Self::parse(iterator)?;
-                        map.insert(text, value);
+                        map.insert(text.to_string(), value);
                     } else {
-                        return Err(ParsingError::new(format!("Invalid string byte {}", c)));
+                        return Err(BencodeError::new(format!("Invalid string byte {}", c)));
                     }
                 }
                 // Closing the dictionary
                 Some('e') => break,
                 Some(c) => {
-                    return Err(ParsingError::new(format!(
+                    return Err(BencodeError::new(format!(
                         "Invalid string byte for dict length '{}'",
                         c
                     )))
                 }
-                None => return Err(ParsingError::new("Empty byte for dict key".to_string())),
+                None => return Err(BencodeError::new("Empty byte for dict key".to_string())),
             }
         }
 
@@ -96,7 +104,7 @@ impl BencodeParser {
 
     fn parse_list<'a>(
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
-    ) -> Result<Bencode, ParsingError> {
+    ) -> Result<Bencode, BencodeError> {
         let mut acc = Vec::new();
         while let Some(&byte) = iterator.next() {
             match char::from_u32(byte as u32) {
@@ -122,7 +130,7 @@ impl BencodeParser {
                 }
                 // end of list, closing it
                 Some('e') => break,
-                Some(c) => return Err(ParsingError::new(format!("Invalid char {}", c))),
+                Some(c) => return Err(BencodeError::new(format!("Invalid char {}", c))),
                 None => break,
             }
         }
@@ -138,7 +146,7 @@ impl BencodeParser {
     fn parse_str<'a>(
         length_start: char,
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
-    ) -> Result<Bencode, ParsingError> {
+    ) -> Result<Bencode, BencodeError> {
         let mut str_len = Vec::new();
         str_len.push(length_start);
         // First we need to read the string length until we reach the `:`.
@@ -147,29 +155,28 @@ impl BencodeParser {
                 Some(c) if Self::is_digit(c) => str_len.push(c),
                 Some(c) if c == ':' => break,
                 Some(c) => {
-                    return Err(ParsingError::new(format!(
+                    return Err(BencodeError::new(format!(
                         "invalid string length character: '{}'",
                         c
                     )))
                 }
-                None => return Err(ParsingError::new(String::from("Invalid string value"))),
+                None => return Err(BencodeError::new(String::from("Invalid string value"))),
             }
         }
 
         // Now we know the string length, we can consume the iterator
         // precisely to the point where the string ends.
-        match str_len.iter().collect::<String>().parse::<i64>() {
+        match str_len.iter().collect::<String>().parse::<u64>() {
             Ok(str_len) => {
                 let mut str_value = Vec::new();
 
-                for _ in 0..str_len {
-                    let byte = iterator.next().unwrap();
+                for byte in iterator.take(str_len as usize) {
                     str_value.push(*byte);
                 }
 
                 Ok(Bencode::Text(ByteString::from_vec(str_value)))
             }
-            Err(_) => Err(ParsingError::new(format!(
+            Err(_) => Err(BencodeError::new(format!(
                 "Invalid string length '{:?}'",
                 str_len
             ))),
@@ -178,15 +185,15 @@ impl BencodeParser {
 
     fn parse_int<'a>(
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
-    ) -> Result<Bencode, ParsingError> {
+    ) -> Result<Bencode, BencodeError> {
         let mut acc = Vec::new();
         while let Some(&byte) = iterator.next() {
             match char::from_u32(byte as u32) {
                 Some(c) if Self::is_digit(c) => acc.push(c),
                 Some('e') => break,
                 Some(c) => {
-                    return Err(ParsingError::new(format!(
-                        "invalid char '{}' when parsing numbers",
+                    return Err(BencodeError::new(format!(
+                        "invalid char '{}' when parsing integers",
                         c
                     )))
                 }
@@ -194,8 +201,13 @@ impl BencodeParser {
             }
         }
         let text_num: String = acc.iter().collect();
-        let num: i64 = text_num.parse().unwrap();
-        return Ok(Bencode::Number(num));
+        text_num
+            .parse::<u64>()
+            .map(|int| Bencode::Number(int))
+            .or(Err(BencodeError::new(format!(
+                "invalid integer value '{}'",
+                text_num
+            ))))
     }
 }
 
@@ -209,7 +221,7 @@ mod tests {
         let str = "64520998877";
         let content = format!("i{}e", str).as_bytes().to_vec();
         let result = BencodeParser::decode(&content).unwrap();
-        assert_eq!(result, Bencode::Number(str.parse::<i64>().unwrap()));
+        assert_eq!(result, Bencode::Number(str.parse::<u64>().unwrap()));
     }
 
     #[test]
@@ -298,12 +310,12 @@ mod tests {
             Bencode::Text(ByteString::new("bruno")),
             Bencode::Dict(HashMap::from([
                 (
-                    ByteString::new("life"),
+                    "life".to_string(),
                     Bencode::Text(ByteString::new("is-good")),
                 ),
-                (ByteString::new("age"), Bencode::Number(64)),
+                ("age".to_string(), Bencode::Number(64)),
                 (
-                    ByteString::new("list"),
+                    "list".to_string(),
                     Bencode::List(vec![
                         Bencode::Number(32),
                         Bencode::Text(ByteString::new("cool")),
@@ -325,18 +337,18 @@ mod tests {
 
         let expected = Bencode::Dict(HashMap::from([
             (
-                ByteString::new("publisher"),
+                "publisher".to_string(),
                 Bencode::Text(ByteString::new("bob")),
             ),
             (
-                ByteString::new("publisher-webpage"),
+                "publisher-webpage".to_string(),
                 Bencode::Text(ByteString::new("www.example.com")),
             ),
             (
-                ByteString::new("publisher.location"),
+                "publisher.location".to_string(),
                 Bencode::Text(ByteString::new("home")),
             ),
-            (ByteString::new("publisher.age"), Bencode::Number(33)),
+            ("publisher.age".to_string(), Bencode::Number(33)),
         ]));
 
         assert_eq!(result, expected);
@@ -350,23 +362,14 @@ mod tests {
         let result = BencodeParser::decode(&list).unwrap();
 
         let expected = Bencode::Dict(HashMap::from([
+            ("cow".to_string(), Bencode::Text(ByteString::new("moo"))),
+            ("spam".to_string(), Bencode::Text(ByteString::new("eggs"))),
+            ("home".to_string(), Bencode::Text(ByteString::new("vienna"))),
+            ("age".to_string(), Bencode::Number(33)),
             (
-                ByteString::new("cow"),
-                Bencode::Text(ByteString::new("moo")),
-            ),
-            (
-                ByteString::new("spam"),
-                Bencode::Text(ByteString::new("eggs")),
-            ),
-            (
-                ByteString::new("home"),
-                Bencode::Text(ByteString::new("vienna")),
-            ),
-            (ByteString::new("age"), Bencode::Number(33)),
-            (
-                ByteString::new("life"),
+                "life".to_string(),
                 Bencode::Dict(HashMap::from([(
-                    ByteString::new("can.be"),
+                    "can.be".to_string(),
                     Bencode::Text(ByteString::new("amazing")),
                 )])),
             ),
