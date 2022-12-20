@@ -4,9 +4,13 @@ use std::{
     ops::Deref,
 };
 
-#[derive(Hash, Clone)]
+#[derive(Hash, Clone, Eq)]
 pub struct ByteString(Vec<u8>);
 
+/// a ByteString is just a string of bytes. It does not have encoding information.
+///
+/// Note: We can try to decode it as UTF-8 when calling `to_string` but we fallback
+/// to just show the byte array length instead if that fails.
 impl ByteString {
     pub fn new(str: &str) -> Self {
         Self(str.as_bytes().to_vec())
@@ -26,7 +30,7 @@ impl ByteString {
             // For strings that are UTF-8 encoded, we can safely format them
             write!(f, "{}", text)
         } else {
-            // For raw strings, we can just display the raw bytes
+            // For raw strings, we can just display the raw array size
             write!(f, "bytes_length:{:?}", self.0.len())
         }
     }
@@ -51,8 +55,6 @@ impl Deref for ByteString {
         &self.0
     }
 }
-
-impl Eq for ByteString {}
 
 impl PartialEq for ByteString {
     fn eq(&self, other: &Self) -> bool {
