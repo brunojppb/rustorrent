@@ -69,14 +69,9 @@ impl BencodeParser {
     fn encode_list(values: &Vec<Bencode>) -> Vec<u8> {
         let mut vec = Vec::new();
         vec.extend("l".as_bytes());
-        for val in values {
-            let encoded_val = match val {
-                Bencode::Number(v) => Self::encode_number(v),
-                Bencode::Text(str) => Self::encode_text(str),
-                Bencode::List(list) => Self::encode_list(list),
-                Bencode::Dict(d) => Self::encode_dict(d),
-            };
-            vec.extend(encoded_val);
+        for value in values {
+            let encoded_value = Self::encode(value);
+            vec.extend(encoded_value);
         }
         vec.extend("e".as_bytes());
         vec
@@ -85,16 +80,11 @@ impl BencodeParser {
     fn encode_dict(value: &HashMap<String, Bencode>) -> Vec<u8> {
         let mut vec = Vec::new();
         vec.extend("d".as_bytes());
-        for (k, v) in value.into_iter() {
-            let encoded_val = match v {
-                Bencode::Number(v) => Self::encode_number(v),
-                Bencode::Text(str) => Self::encode_text(str),
-                Bencode::List(list) => Self::encode_list(list),
-                Bencode::Dict(d) => Self::encode_dict(d),
-            };
-            let encoded_key = Self::encode_text(&ByteString(k.as_bytes().to_vec()));
+        for (key, value) in value.into_iter() {
+            let encoded_key = Self::encode_text(&ByteString(key.as_bytes().to_vec()));
+            let encoded_value = Self::encode(value);
             vec.extend(encoded_key);
-            vec.extend(encoded_val);
+            vec.extend(encoded_value);
         }
 
         vec.extend("e".as_bytes());
