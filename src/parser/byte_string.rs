@@ -5,7 +5,7 @@ use std::{
 };
 
 #[derive(Hash, Clone, Eq)]
-pub struct ByteString(Vec<u8>);
+pub struct ByteString(pub Vec<u8>);
 
 /// a ByteString is just a string of bytes. It does not have encoding information.
 ///
@@ -30,8 +30,8 @@ impl ByteString {
             // For strings that are UTF-8 encoded, we can safely format them
             write!(f, "{}", text)
         } else {
-            // For raw strings, we can just display the raw array size
-            write!(f, "byte_str_length:{:?}", self.0.len())
+            // For raw strings, we can just display the raw array size for now
+            write!(f, "{:?}", self.0.len())
         }
     }
 }
