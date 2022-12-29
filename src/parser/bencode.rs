@@ -1,13 +1,16 @@
-use crate::parser::byte_string::ByteString;
-use std::{collections::HashMap, fmt::Display, fs, iter::Peekable};
+use indexmap::IndexMap;
 
-#[derive(Debug, PartialEq, Eq)]
+use crate::parser::byte_string::ByteString;
+use std::error::Error;
+use std::{fmt::Display, fs, iter::Peekable};
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Bencode {
     // Bencode text is always represented as byte strings
     Text(ByteString),
     Number(u64),
     List(Vec<Self>),
-    Dict(HashMap<String, Self>),
+    Dict(IndexMap<ByteString, Self>),
 }
 
 #[derive(Debug, Clone)]
@@ -20,6 +23,8 @@ impl BencodeError {
         Self { message }
     }
 }
+
+impl Error for BencodeError {}
 
 impl Display for BencodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -77,12 +82,13 @@ impl BencodeParser {
         vec
     }
 
-    fn encode_dict(value: &HashMap<String, Bencode>) -> Vec<u8> {
+    fn encode_dict(value: &IndexMap<ByteString, Bencode>) -> Vec<u8> {
         let mut vec = Vec::new();
         vec.extend("d".as_bytes());
         for (key, value) in value.into_iter() {
-            let encoded_key = Self::encode_text(&ByteString(key.as_bytes().to_vec()));
+            println!("KEY: {}", key);
             let encoded_value = Self::encode(value);
+            let encoded_key = Self::encode_text(key);
             vec.extend(encoded_key);
             vec.extend(encoded_value);
         }
@@ -120,7 +126,7 @@ impl BencodeParser {
     fn parse_dict<'a>(
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
     ) -> Result<Bencode, BencodeError> {
-        let mut map = HashMap::new();
+        let mut map = IndexMap::new();
 
         while let Some(&byte) = iterator.next() {
             match char::from_u32(byte as u32) {
@@ -129,7 +135,7 @@ impl BencodeParser {
                     if let Bencode::Text(text) = Self::parse_str(c, iterator)? {
                         // Value can be anything, including dictionaries
                         let value = Self::parse(iterator)?;
-                        map.insert(text.to_string(), value);
+                        map.insert(text, value);
                     } else {
                         return Err(BencodeError::new(format!("Invalid string byte {}", c)));
                     }
@@ -355,14 +361,14 @@ mod tests {
         let expected = Bencode::List(vec![
             Bencode::Number(32),
             Bencode::Text(ByteString::new("bruno")),
-            Bencode::Dict(HashMap::from([
+            Bencode::Dict(IndexMap::from([
                 (
-                    "life".to_string(),
+                    ByteString::new("life"),
                     Bencode::Text(ByteString::new("is-good")),
                 ),
-                ("age".to_string(), Bencode::Number(64)),
+                (ByteString::new("age"), Bencode::Number(64)),
                 (
-                    "list".to_string(),
+                    ByteString::new("list"),
                     Bencode::List(vec![
                         Bencode::Number(32),
                         Bencode::Text(ByteString::new("cool")),
@@ -382,20 +388,20 @@ mod tests {
                 .to_vec();
         let result = BencodeParser::decode(&list).unwrap();
 
-        let expected = Bencode::Dict(HashMap::from([
+        let expected = Bencode::Dict(IndexMap::from([
             (
-                "publisher".to_string(),
+                ByteString::new("publisher"),
                 Bencode::Text(ByteString::new("bob")),
             ),
             (
-                "publisher-webpage".to_string(),
+                ByteString::new("publisher-webpage"),
                 Bencode::Text(ByteString::new("www.example.com")),
             ),
             (
-                "publisher.location".to_string(),
+                ByteString::new("publisher.location"),
                 Bencode::Text(ByteString::new("home")),
             ),
-            ("publisher.age".to_string(), Bencode::Number(33)),
+            (ByteString::new("publisher.age"), Bencode::Number(33)),
         ]));
 
         assert_eq!(result, expected);
@@ -408,15 +414,24 @@ mod tests {
             .to_vec();
         let result = BencodeParser::decode(&list).unwrap();
 
-        let expected = Bencode::Dict(HashMap::from([
-            ("cow".to_string(), Bencode::Text(ByteString::new("moo"))),
-            ("spam".to_string(), Bencode::Text(ByteString::new("eggs"))),
-            ("home".to_string(), Bencode::Text(ByteString::new("vienna"))),
-            ("age".to_string(), Bencode::Number(33)),
+        let expected = Bencode::Dict(IndexMap::from([
             (
-                "life".to_string(),
-                Bencode::Dict(HashMap::from([(
-                    "can.be".to_string(),
+                ByteString::new("cow"),
+                Bencode::Text(ByteString::new("moo")),
+            ),
+            (
+                ByteString::new("spam"),
+                Bencode::Text(ByteString::new("eggs")),
+            ),
+            (
+                ByteString::new("home"),
+                Bencode::Text(ByteString::new("vienna")),
+            ),
+            (ByteString::new("age"), Bencode::Number(33)),
+            (
+                ByteString::new("life"),
+                Bencode::Dict(IndexMap::from([(
+                    ByteString::new("can.be"),
                     Bencode::Text(ByteString::new("amazing")),
                 )])),
             ),
@@ -427,20 +442,29 @@ mod tests {
 
     #[test]
     fn should_encode_and_decode_bencode_values_to_bytes() {
-        let decoded_value = Bencode::Dict(HashMap::from([
-            ("cow".to_string(), Bencode::Text(ByteString::new("moo"))),
-            ("spam".to_string(), Bencode::Text(ByteString::new("eggs"))),
-            ("home".to_string(), Bencode::Text(ByteString::new("vienna"))),
-            ("age".to_string(), Bencode::Number(33)),
+        let decoded_value = Bencode::Dict(IndexMap::from([
             (
-                "life".to_string(),
-                Bencode::Dict(HashMap::from([(
-                    "can.be".to_string(),
+                ByteString::new("cow"),
+                Bencode::Text(ByteString::new("moo")),
+            ),
+            (
+                ByteString::new("spam"),
+                Bencode::Text(ByteString::new("eggs")),
+            ),
+            (
+                ByteString::new("home"),
+                Bencode::Text(ByteString::new("vienna")),
+            ),
+            (ByteString::new("age"), Bencode::Number(33)),
+            (
+                ByteString::new("life"),
+                Bencode::Dict(IndexMap::from([(
+                    ByteString::new("can.be"),
                     Bencode::Text(ByteString::new("amazing")),
                 )])),
             ),
             (
-                "items".to_string(),
+                ByteString::new("items"),
                 Bencode::List(vec![
                     Bencode::Number(10),
                     Bencode::Text(ByteString::new("who cares")),
