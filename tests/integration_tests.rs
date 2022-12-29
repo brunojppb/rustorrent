@@ -37,7 +37,6 @@ fn can_decode_a_torrent_file_with_a_single_file() {
 fn can_decode_a_torrent_file_with_multiple_files() {
     let meta_info = MetaInfo::from_file("tests/haphead_bundle.torrent");
 
-    println!("Meta Info: {:?}", meta_info);
     assert!(&meta_info.is_ok());
 
     let meta_info = meta_info.unwrap();
@@ -63,4 +62,10 @@ fn can_write_file() {
 
     let decoded_from_new_file = BencodeParser::from_file("tests/tmp/test.torrent").unwrap();
     assert_eq!(decoded_file, decoded_from_new_file);
+}
+
+#[test]
+fn should_parse_announce_response() {
+    let decoded_announce_response = BencodeParser::from_file("tests/announce_response");
+    assert!(decoded_announce_response.is_ok());
 }
