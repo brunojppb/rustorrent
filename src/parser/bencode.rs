@@ -86,7 +86,6 @@ impl BencodeParser {
         let mut vec = Vec::new();
         vec.extend("d".as_bytes());
         for (key, value) in value.into_iter() {
-            println!("KEY: {}", key);
             let encoded_value = Self::encode(value);
             let encoded_key = Self::encode_text(key);
             vec.extend(encoded_key);

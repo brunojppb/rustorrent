@@ -6,7 +6,7 @@ use super::byte_string::ByteString;
 type Dict = IndexMap<ByteString, Bencode>;
 
 /// Meta-info files (.torrent) according to the (unofficial) spec.
-/// See: https://wiki.theory.org/BitTorrentSpecification#Metainfo_File_Structure
+/// See the [Metainfo spec here](https://wiki.theory.org/BitTorrentSpecification#Metainfo_File_Structure) (unofficial)
 #[derive(Debug)]
 pub struct MetaInfo {
     pub info: Info,
@@ -15,7 +15,7 @@ pub struct MetaInfo {
     // extension to the official specification, offering backwards-compatibility.
     pub announce_list: Option<Vec<String>>,
     pub creation_date: Option<u64>,
-    /// ree-form textual comments of the author
+    /// free-form textual comments of the author
     pub comment: Option<String>,
     pub created_by: Option<String>,
     /// the string encoding format used to generate the pieces part
@@ -266,7 +266,7 @@ fn get_optional_str(key: &str, dict: &Dict) -> Option<String> {
     })
 }
 
-/// Get a Bencode value from the given hashmap.
+/// Get a Bencode value from the given hash map.
 fn get_value<'a>(key: &str, dict: &'a Dict) -> Result<&'a Bencode, BencodeError> {
     if let Some(value) = dict.get(&ByteString::new(key)) {
         Ok(value)
