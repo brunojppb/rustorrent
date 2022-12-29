@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 use super::bencode::{Bencode, BencodeError, BencodeParser};
 use super::byte_string::ByteString;
 
-type Dict = HashMap<String, Bencode>;
+type Dict = IndexMap<ByteString, Bencode>;
 
 /// Meta-info files (.torrent) according to the (unofficial) spec.
 /// See: https://wiki.theory.org/BitTorrentSpecification#Metainfo_File_Structure
@@ -32,37 +32,41 @@ impl MetaInfo {
                 let info = Info::from(&dict)?;
 
                 if let Bencode::Text(announce) = get_value("announce", &dict)? {
-                    let announce_list = dict.get("announce-list").and_then(|l| match l {
-                        Bencode::List(list) => {
-                            let res = list
-                                .iter()
-                                .filter_map(|v| match v {
-                                    // Announce list is always a list if lists of strings (Vec<Vec<String>>)
-                                    // so we need to flatten them out
-                                    Bencode::List(list) => {
-                                        let mut values = Vec::with_capacity(list.len());
-                                        for text in list.iter() {
-                                            if let Bencode::Text(announce_url) = text {
-                                                values.push(announce_url.to_string());
+                    let announce_list =
+                        dict.get(&ByteString::new("announce-list"))
+                            .and_then(|l| match l {
+                                Bencode::List(list) => {
+                                    let res = list
+                                        .iter()
+                                        .filter_map(|v| match v {
+                                            // Announce list is always a list of lists of strings (Vec<Vec<String>>)
+                                            // so we need to flatten them out
+                                            Bencode::List(list) => {
+                                                let mut values = Vec::with_capacity(list.len());
+                                                for text in list.iter() {
+                                                    if let Bencode::Text(announce_url) = text {
+                                                        values.push(announce_url.to_string());
+                                                    }
+                                                }
+                                                Some(values)
                                             }
-                                        }
-                                        Some(values)
-                                    }
-                                    _ => None,
-                                })
-                                .flatten()
-                                .collect::<Vec<String>>();
-                            Some(res)
-                        }
-                        _ => None,
-                    });
+                                            _ => None,
+                                        })
+                                        .flatten()
+                                        .collect::<Vec<String>>();
+                                    Some(res)
+                                }
+                                _ => None,
+                            });
                     let comment = get_optional_str("comment", &dict);
                     let created_by = get_optional_str("created by", &dict);
                     let encoding = get_optional_str("encoding", &dict);
-                    let creation_date = dict.get("creation date").and_then(|date| match date {
-                        Bencode::Number(date_int) => Some(date_int.clone()),
-                        _ => None,
-                    });
+                    let creation_date =
+                        dict.get(&ByteString::new("creation date"))
+                            .and_then(|date| match date {
+                                Bencode::Number(date_int) => Some(date_int.clone()),
+                                _ => None,
+                            });
 
                     return Ok(Self {
                         info,
@@ -96,6 +100,7 @@ pub struct Info {
     /// Here, "private" may be read as "no external peer source".
     pub private: bool,
     pub file_info: FileMode,
+    pub bencode_value: Vec<u8>,
 }
 
 impl Info {
@@ -104,15 +109,17 @@ impl Info {
             if let Bencode::Number(piece_length) = get_value("piece length", info_dict)? {
                 if let Bencode::Text(pieces) = get_value("pieces", info_dict)? {
                     let private = info_dict
-                        .get("private")
+                        .get(&ByteString::new("private"))
                         .map(|v| &Bencode::Number(1) == v)
                         .unwrap_or_else(|| false);
                     let file_info = Self::parse_file_info(info_dict)?;
+                    let bencode_value = Bencode::Dict(info_dict.clone());
                     return Ok(Self {
                         piece_length: piece_length.clone(),
                         pieces: pieces.clone(),
                         private,
                         file_info,
+                        bencode_value: BencodeParser::encode(&bencode_value),
                     });
                 }
             }
@@ -121,7 +128,7 @@ impl Info {
     }
 
     fn parse_file_info(dict: &Dict) -> Result<FileMode, BencodeError> {
-        match dict.get("files") {
+        match dict.get(&ByteString::new("files")) {
             // Multiple files mode
             Some(_) => {
                 let multi_file = MultiFile::from(dict)?;
@@ -238,7 +245,7 @@ impl SingleFile {
 }
 
 fn get_opt_str_list(key: &str, dict: &Dict) -> Option<Vec<String>> {
-    dict.get(key).and_then(|v| match v {
+    dict.get(&ByteString::new(key)).and_then(|v| match v {
         Bencode::List(list) => {
             let mut values = Vec::with_capacity(list.len());
             for code in list.iter() {
@@ -253,7 +260,7 @@ fn get_opt_str_list(key: &str, dict: &Dict) -> Option<Vec<String>> {
 }
 
 fn get_optional_str(key: &str, dict: &Dict) -> Option<String> {
-    dict.get(key).and_then(|v| match v {
+    dict.get(&ByteString::new(key)).and_then(|v| match v {
         Bencode::Text(value) => Some(value.to_string()),
         _ => None,
     })
@@ -261,7 +268,7 @@ fn get_optional_str(key: &str, dict: &Dict) -> Option<String> {
 
 /// Get a Bencode value from the given hashmap.
 fn get_value<'a>(key: &str, dict: &'a Dict) -> Result<&'a Bencode, BencodeError> {
-    if let Some(value) = dict.get(key) {
+    if let Some(value) = dict.get(&ByteString::new(key)) {
         Ok(value)
     } else {
         println!("Error dict: {:?}", dict);
