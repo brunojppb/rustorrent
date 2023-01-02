@@ -22,6 +22,12 @@ impl BencodeError {
     pub fn new(message: String) -> Self {
         Self { message }
     }
+
+    pub fn from_str(message: &str) -> Self {
+        Self {
+            message: String::from(message),
+        }
+    }
 }
 
 impl Error for BencodeError {}
