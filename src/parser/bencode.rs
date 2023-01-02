@@ -100,23 +100,19 @@ impl BencodeParser {
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
     ) -> Result<Bencode, BencodeError> {
         while let Some(&byte) = iterator.next() {
-            match char::from_u32(byte as u32) {
-                Some('i') => return Self::parse_int(iterator),
-                Some('l') => return Self::parse_list(iterator),
-                Some('d') => return Self::parse_dict(iterator),
-                Some(c) if Self::is_digit(c) => return Self::parse_str(c, iterator),
-                Some(c) => {
-                    return Err(BencodeError::new(format!(
-                        "Invalid byte for bencode value: '{}'",
-                        c
-                    )))
-                }
-                None => {
-                    return Err(BencodeError::new(
-                        "Empty bytes while trying to parse bencode value".to_string(),
-                    ))
-                }
-            }
+            return match char::from_u32(byte as u32) {
+                Some('i') => Self::parse_int(iterator),
+                Some('l') => Self::parse_list(iterator),
+                Some('d') => Self::parse_dict(iterator),
+                Some(c) if Self::is_digit(c) => Self::parse_str(c, iterator),
+                Some(c) => Err(BencodeError::new(format!(
+                    "Invalid byte for bencode value: '{}'",
+                    c
+                ))),
+                None => Err(BencodeError::new(
+                    "Empty bytes while trying to parse bencode value".to_string(),
+                )),
+            };
         }
 
         Err(BencodeError::new(String::from("Invalid Bencode content")))
@@ -220,7 +216,7 @@ impl BencodeParser {
         // precisely to the point where the string ends.
         match str_len.iter().collect::<String>().parse::<u64>() {
             Ok(str_len) => {
-                let mut str_value = Vec::new();
+                let mut str_value = Vec::with_capacity(str_len as usize);
 
                 for byte in iterator.take(str_len as usize) {
                     str_value.push(*byte);
