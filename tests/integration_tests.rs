@@ -1,3 +1,9 @@
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::Path,
+};
+
 use rustorrent::parser::{
     bencode::BencodeParser,
     meta_info::MetaInfo,
@@ -31,7 +37,6 @@ fn can_decode_a_torrent_file_with_a_single_file() {
 fn can_decode_a_torrent_file_with_multiple_files() {
     let meta_info = MetaInfo::from_file("tests/haphead_bundle.torrent");
 
-    println!("Meta Info: {:?}", meta_info);
     assert!(&meta_info.is_ok());
 
     let meta_info = meta_info.unwrap();
@@ -41,4 +46,26 @@ fn can_decode_a_torrent_file_with_multiple_files() {
     );
 
     // @TODO: Assert on file mode content for list of files
+}
+
+// Make sure that
+#[test]
+fn can_write_file() {
+    let decoded_file = BencodeParser::from_file("tests/ubuntu_sample.torrent").unwrap();
+    let encoded_file_content = BencodeParser::encode(&decoded_file);
+
+    let file_path = "tests/tmp/test.torrent";
+    let test_file_path = Path::new(&file_path);
+    fs::create_dir_all(test_file_path.parent().unwrap()).unwrap();
+    let mut f = File::create(file_path).unwrap();
+    f.write_all(&encoded_file_content).unwrap();
+
+    let decoded_from_new_file = BencodeParser::from_file("tests/tmp/test.torrent").unwrap();
+    assert_eq!(decoded_file, decoded_from_new_file);
+}
+
+#[test]
+fn should_parse_announce_response() {
+    let decoded_announce_response = BencodeParser::from_file("tests/announce_response");
+    assert!(decoded_announce_response.is_ok());
 }
