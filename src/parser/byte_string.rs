@@ -26,12 +26,12 @@ impl ByteString {
     }
 
     fn print(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Ok(text) = core::str::from_utf8(&self.0) {
+        if let Ok(text) = core::str::from_utf8(&self) {
             // For strings that are UTF-8 encoded, we can safely format them
             write!(f, "{}", text)
         } else {
             // For raw strings, we can just display the raw array size for now
-            write!(f, "{:?}", self.0.len())
+            write!(f, "{:?}", self.len())
         }
     }
 }

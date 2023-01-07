@@ -69,7 +69,7 @@ impl BencodeParser {
     }
 
     fn encode_text(value: &ByteString) -> Vec<u8> {
-        let len = value.0.len().to_string();
+        let len = value.len().to_string();
         let mut vec = Vec::new();
         vec.extend(len.as_bytes());
         vec.extend(":".as_bytes());
