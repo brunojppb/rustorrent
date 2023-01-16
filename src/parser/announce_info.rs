@@ -26,7 +26,7 @@ impl AnnounceInfo {
                             if let Some(Bencode::List(peers_list)) =
                                 map.get(&ByteString::new("peers"))
                             {
-                                let maybe_traker_id = map
+                                let maybe_tracker_id = map
                                     .get(&ByteString::new("tracker id"))
                                     .and_then(|v| match v {
                                         Bencode::Text(peer_id) => Some(peer_id.to_string()),
@@ -42,7 +42,7 @@ impl AnnounceInfo {
                                     incomplete: incomplete.to_owned(),
                                     interval: interval.to_owned(),
                                     peers,
-                                    tracker_id: maybe_traker_id,
+                                    tracker_id: maybe_tracker_id,
                                     min_interval: None,
                                 });
                             }
