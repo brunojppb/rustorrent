@@ -69,6 +69,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore = "Can't test that in CI yet until I have a HTTP client mocking strategy"]
     async fn should_get_announce_server_info_from_torrent_file() {
         let meta_info = MetaInfo::from_file("tests/ubuntu_sample.torrent").unwrap();
         // example of a valid announce URL:
@@ -77,8 +78,6 @@ mod tests {
         let resp = http_tracker
             .get_announce_info(&meta_info.announce, meta_info.info)
             .await;
-
-        // println!("Resp: {:#?}", resp);
 
         assert!(resp.is_ok());
     }
