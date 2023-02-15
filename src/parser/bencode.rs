@@ -22,12 +22,6 @@ impl BencodeError {
     pub fn new(message: String) -> Self {
         Self { message }
     }
-
-    pub fn from_str(message: &str) -> Self {
-        Self {
-            message: String::from(message),
-        }
-    }
 }
 
 impl Error for BencodeError {}
@@ -105,7 +99,7 @@ impl BencodeParser {
     fn parse<'a>(
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
     ) -> Result<Bencode, BencodeError> {
-        while let Some(&byte) = iterator.next() {
+        if let Some(&byte) = iterator.next() {
             return match char::from_u32(byte as u32) {
                 Some('i') => Self::parse_int(iterator),
                 Some('l') => Self::parse_list(iterator),
