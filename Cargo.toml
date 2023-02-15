@@ -12,3 +12,4 @@ sha1 = { version = "0.10" }
 indexmap = { version = "1" }
 # Encoding library that supports binary (byte strings) encoding
 urlencoding = { version = "2" }
+wiremock = "0.5.17"
