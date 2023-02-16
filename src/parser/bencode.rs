@@ -252,7 +252,7 @@ impl BencodeParser {
         let text_num: String = acc.iter().collect();
         text_num
             .parse::<u64>()
-            .map(|int| Bencode::Number(int))
+            .map(Bencode::Number)
             .or(Err(BencodeError::new(format!(
                 "invalid integer value '{}'",
                 text_num

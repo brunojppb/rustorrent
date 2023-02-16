@@ -64,7 +64,7 @@ impl MetaInfo {
                     let creation_date =
                         dict.get(&ByteString::new("creation date"))
                             .and_then(|date| match date {
-                                Bencode::Number(date_int) => Some(date_int.clone()),
+                                Bencode::Number(date_int) => Some(*date_int),
                                 _ => None,
                             });
 
@@ -115,7 +115,7 @@ impl Info {
                     let file_info = Self::parse_file_info(info_dict)?;
                     let bencode_value = Bencode::Dict(info_dict.clone());
                     return Ok(Self {
-                        piece_length: piece_length.clone(),
+                        piece_length: *piece_length,
                         pieces: pieces.clone(),
                         private,
                         file_info,
@@ -160,12 +160,12 @@ pub struct MultiFile {
 impl MultiFile {
     fn from(dict: &Dict) -> Result<Self, BencodeError> {
         if let Bencode::Text(name) = get_value("name", dict)? {
-            if let Bencode::List(files) = get_value("files", &dict)? {
+            if let Bencode::List(files) = get_value("files", dict)? {
                 let mut file_items = Vec::with_capacity(files.len());
                 for file in files {
                     match file {
                         Bencode::Dict(file) => {
-                            let file = MultiFileItem::from(&file)?;
+                            let file = MultiFileItem::from(file)?;
                             file_items.push(file);
                         }
                         _ => {
@@ -206,7 +206,7 @@ impl MultiFileItem {
             if let Bencode::Number(length) = get_value("length", dict)? {
                 let md5sum = get_optional_str("md5sum", dict);
                 return Ok(Self {
-                    length: length.clone(),
+                    length: *length,
                     path,
                     md5sum,
                 });
@@ -234,7 +234,7 @@ impl SingleFile {
                 let md5sum = get_optional_str("md5sum", dict);
                 return Ok(Self {
                     name: name.to_string(),
-                    length: length.clone(),
+                    length: *length,
                     md5sum,
                 });
             }
