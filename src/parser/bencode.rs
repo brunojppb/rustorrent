@@ -36,7 +36,7 @@ pub struct BencodeParser;
 
 impl BencodeParser {
     /// Parse the given raw content to a Bencode value
-    pub fn decode(raw_content: &Vec<u8>) -> Result<Bencode, BencodeError> {
+    pub fn decode(raw_content: &[u8]) -> Result<Bencode, BencodeError> {
         let mut iterator = raw_content.iter().peekable();
         Self::parse(&mut iterator)
     }
@@ -51,10 +51,10 @@ impl BencodeParser {
 
     pub fn encode(value: &Bencode) -> Vec<u8> {
         match value {
-            Bencode::Dict(d) => Self::encode_dict(&d),
-            Bencode::List(l) => Self::encode_list(&l),
-            Bencode::Number(n) => Self::encode_number(&n),
-            Bencode::Text(t) => Self::encode_text(&t),
+            Bencode::Dict(d) => Self::encode_dict(d),
+            Bencode::List(l) => Self::encode_list(l),
+            Bencode::Number(n) => Self::encode_number(n),
+            Bencode::Text(t) => Self::encode_text(t),
         }
     }
 
@@ -188,18 +188,19 @@ impl BencodeParser {
 
     /// Whether the given character is a valid number character
     fn is_digit(c: char) -> bool {
-        c >= '0' && c <= '9'
+        ('0'..='9').contains(&c)
     }
 
     fn parse_str<'a>(
         length_start: char,
-        iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
+        mut iterator: &mut impl Iterator<Item = &'a u8>,
     ) -> Result<Bencode, BencodeError> {
         let mut str_len = Vec::new();
         str_len.push(length_start);
+
         // First we need to read the string length until we reach the `:`.
-        while let Some(&byte) = iterator.next() {
-            match char::from_u32(byte as u32) {
+        for byte in &mut iterator {
+            match char::from_u32(*byte as u32) {
                 Some(c) if Self::is_digit(c) => str_len.push(c),
                 Some(c) if c == ':' => break,
                 Some(c) => {
