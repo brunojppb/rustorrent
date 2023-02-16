@@ -197,8 +197,8 @@ impl BencodeParser {
         str_len.push(length_start);
 
         // First we need to read the string length until we reach the `:`.
-        for byte in &mut iterator {
-            match char::from_u32(*byte as u32) {
+        for &byte in &mut iterator {
+            match char::from_u32(byte as u32) {
                 Some(c) if Self::is_digit(c) => str_len.push(c),
                 Some(c) if c == ':' => break,
                 Some(c) => {
