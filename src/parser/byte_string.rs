@@ -4,7 +4,7 @@ use std::{
     ops::Deref,
 };
 
-#[derive(Hash, Clone, Eq)]
+#[derive(Clone, Eq)]
 pub struct ByteString(pub Vec<u8>);
 
 /// a ByteString is just a string of bytes. It does not have encoding information.
@@ -26,7 +26,7 @@ impl ByteString {
     }
 
     fn print(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Ok(text) = core::str::from_utf8(&self) {
+        if let Ok(text) = core::str::from_utf8(self) {
             // For strings that are UTF-8 encoded, we can safely format them
             write!(f, "{}", text)
         } else {
@@ -60,8 +60,10 @@ impl PartialEq for ByteString {
     fn eq(&self, other: &Self) -> bool {
         Self::compare_vectors(self, other)
     }
+}
 
-    fn ne(&self, other: &Self) -> bool {
-        !Self::compare_vectors(self, other)
+impl Hash for ByteString {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state)
     }
 }
