@@ -9,8 +9,8 @@ pub enum Bencode {
     // Bencode text is always represented as byte strings
     Text(ByteString),
     Number(u64),
-    List(Vec<Self>),
-    Dict(IndexMap<ByteString, Self>),
+    List(Vec<Bencode>),
+    Dict(IndexMap<ByteString, Bencode>),
 }
 
 #[derive(Debug, Clone)]
