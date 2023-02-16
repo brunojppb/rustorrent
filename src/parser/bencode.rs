@@ -121,8 +121,8 @@ impl BencodeParser {
     ) -> Result<Bencode, BencodeError> {
         let mut map = IndexMap::new();
 
-        while let Some(&b) = iterator.next() {
-            match char::from_u32(b as u32) {
+        while let Some(&byte) = iterator.next() {
+            match char::from_u32(byte as u32) {
                 Some(c) if Self::is_digit(c) => {
                     // we first handle the dictionary key
                     if let Bencode::Text(text) = Self::parse_str(c, iterator)? {
