@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 
 use crate::parser::byte_string::ByteString;
 use std::error::Error;
-use std::{fmt::Display, fs, iter::Peekable};
+use std::{fmt::Display, fs};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Bencode {
@@ -37,7 +37,7 @@ pub struct BencodeParser;
 impl BencodeParser {
     /// Parse the given raw content to a Bencode value
     pub fn decode(raw_content: &[u8]) -> Result<Bencode, BencodeError> {
-        let mut iterator = raw_content.iter().peekable();
+        let mut iterator = raw_content.iter();
         Self::parse(&mut iterator)
     }
 
@@ -96,9 +96,7 @@ impl BencodeParser {
         vec
     }
 
-    fn parse<'a>(
-        iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
-    ) -> Result<Bencode, BencodeError> {
+    fn parse<'a>(iterator: &mut impl Iterator<Item = &'a u8>) -> Result<Bencode, BencodeError> {
         if let Some(&byte) = iterator.next() {
             return match char::from_u32(byte as u32) {
                 Some('i') => Self::parse_int(iterator),
@@ -119,7 +117,7 @@ impl BencodeParser {
     }
 
     fn parse_dict<'a>(
-        iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
+        iterator: &mut impl Iterator<Item = &'a u8>,
     ) -> Result<Bencode, BencodeError> {
         let mut map = IndexMap::new();
 
@@ -151,7 +149,7 @@ impl BencodeParser {
     }
 
     fn parse_list<'a>(
-        iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
+        iterator: &mut impl Iterator<Item = &'a u8>,
     ) -> Result<Bencode, BencodeError> {
         let mut acc = Vec::new();
         while let Some(&byte) = iterator.next() {
@@ -232,9 +230,7 @@ impl BencodeParser {
         }
     }
 
-    fn parse_int<'a>(
-        iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
-    ) -> Result<Bencode, BencodeError> {
+    fn parse_int<'a>(iterator: &mut impl Iterator<Item = &'a u8>) -> Result<Bencode, BencodeError> {
         let mut acc = Vec::new();
         for &byte in iterator {
             match char::from_u32(byte as u32) {
