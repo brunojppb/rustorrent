@@ -14,52 +14,54 @@ pub struct AnnounceInfo {
 
 impl AnnounceInfo {
     pub fn parse(value: &Bencode) -> Result<Self, BencodeError> {
-        match value {
-            Bencode::Dict(map) => {
-                if let Some(Bencode::Number(complete)) = map.get(&ByteString::new("complete")) {
-                    if let Some(Bencode::Number(incomplete)) =
-                        map.get(&ByteString::new("incomplete"))
-                    {
-                        if let Some(Bencode::Number(interval)) =
-                            map.get(&ByteString::new("interval"))
-                        {
-                            if let Some(Bencode::List(peers_list)) =
-                                map.get(&ByteString::new("peers"))
-                            {
-                                let maybe_tracker_id = map
-                                    .get(&ByteString::new("tracker id"))
-                                    .and_then(|v| match v {
-                                        Bencode::Text(peer_id) => Some(peer_id.to_string()),
-                                        _ => None,
-                                    });
-                                let mut peers = Vec::with_capacity(peers_list.len());
-                                for peer_dict in peers_list.iter() {
-                                    let peer = Peer::parse(peer_dict)?;
-                                    peers.push(peer);
-                                }
-                                return Ok(Self {
-                                    complete: complete.to_owned(),
-                                    incomplete: incomplete.to_owned(),
-                                    interval: interval.to_owned(),
-                                    peers,
-                                    tracker_id: maybe_tracker_id,
-                                    min_interval: None,
-                                });
-                            }
-                        }
-                    }
-                }
+        let err = |msg: &str| -> Result<Self, BencodeError> {
+            Err(BencodeError::new(format!(
+                "Invalid bencode value for AnounceInfo when decoding \"{}\": {:?}",
+                msg, value
+            )))
+        };
 
-                Err(BencodeError::new(format!(
-                    "Invalid bencode value for announce info: {:?}",
-                    value
-                )))
-            }
-            _ => Err(BencodeError::new(format!(
-                "Invalid bencode value for announce info: {:?}",
-                value
-            ))),
+        let Bencode::Dict(map) = value else {
+            return err("initial value");
+        };
+
+        let Some(Bencode::Number(complete)) = map.get(&ByteString::new("complete"))  else {
+            return err("complete");
+        };
+
+        let Some(Bencode::Number(incomplete)) = map.get(&ByteString::new("incomplete")) else {
+            return err("incomplete");
+        };
+
+        let Some(Bencode::Number(interval)) = map.get(&ByteString::new("interval")) else {
+            return err("interval");
+        };
+
+        let Some(Bencode::List(peers_list)) =
+                                map.get(&ByteString::new("peers")) else {
+            return err("peers");
+        };
+
+        let maybe_tracker_id = map
+            .get(&ByteString::new("tracker id"))
+            .and_then(|v| match v {
+                Bencode::Text(peer_id) => Some(peer_id.to_string()),
+                _ => None,
+            });
+        let mut peers = Vec::with_capacity(peers_list.len());
+        for peer_dict in peers_list.iter() {
+            let peer = Peer::parse(peer_dict)?;
+            peers.push(peer);
         }
+
+        Ok(Self {
+            complete: complete.to_owned(),
+            incomplete: incomplete.to_owned(),
+            interval: interval.to_owned(),
+            peers,
+            tracker_id: maybe_tracker_id,
+            min_interval: None,
+        })
     }
 }
 
@@ -76,26 +78,26 @@ impl Peer {
     // First 4 bytes are the IP address and last 2 bytes are the port number,
     // all in network (big endian) notation.
     pub fn parse(value: &Bencode) -> Result<Self, BencodeError> {
-        let err = || -> Result<Self, BencodeError> {
+        let err = |msg: &str| -> Result<Self, BencodeError> {
             Err(BencodeError::new(format!(
-                "Invalid bencode value for peer: {:?}",
-                value
+                "Invalid bencode value for peer when decoding \"{}\": {:?}",
+                msg, value
             )))
         };
         let Bencode::Dict(map) = value else {
-            return err();
+            return err("raw value");
         };
 
         let Some(Bencode::Text(peer_id)) = map.get(&ByteString::new("peer id")) else {
-            return err();
+            return err("peer id");
         };
 
         let Some(Bencode::Text(ip)) = map.get(&ByteString::new("ip")) else {
-            return err();
+            return err("ip");
         };
 
         let Some(Bencode::Number(port)) = map.get(&ByteString::new("port"))  else {
-            return err();
+            return err("port");
         };
 
         Ok(Self {
