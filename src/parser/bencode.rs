@@ -236,7 +236,7 @@ impl BencodeParser {
         iterator: &mut Peekable<impl Iterator<Item = &'a u8>>,
     ) -> Result<Bencode, BencodeError> {
         let mut acc = Vec::new();
-        while let Some(&byte) = iterator.next() {
+        for &byte in iterator {
             match char::from_u32(byte as u32) {
                 Some(c) if Self::is_digit(c) => acc.push(c),
                 Some('e') => break,
