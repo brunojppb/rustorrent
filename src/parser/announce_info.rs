@@ -76,28 +76,32 @@ impl Peer {
     // First 4 bytes are the IP address and last 2 bytes are the port number,
     // all in network (big endian) notation.
     pub fn parse(value: &Bencode) -> Result<Self, BencodeError> {
-        match value {
-            Bencode::Dict(map) => {
-                if let Some(Bencode::Text(peer_id)) = map.get(&ByteString::new("peer id")) {
-                    if let Some(Bencode::Text(ip)) = map.get(&ByteString::new("ip")) {
-                        if let Some(Bencode::Number(port)) = map.get(&ByteString::new("port")) {
-                            return Ok(Self {
-                                peer_id: peer_id.to_string(),
-                                ip: ip.to_string(),
-                                port: port.to_owned(),
-                            });
-                        }
-                    }
-                }
-                Err(BencodeError::new(format!(
-                    "Invalid bencode value for peer: {:?}",
-                    value
-                )))
-            }
-            _ => Err(BencodeError::new(format!(
+        let err = || -> Result<Self, BencodeError> {
+            Err(BencodeError::new(format!(
                 "Invalid bencode value for peer: {:?}",
                 value
-            ))),
-        }
+            )))
+        };
+        let Bencode::Dict(map) = value else {
+            return err();
+        };
+
+        let Some(Bencode::Text(peer_id)) = map.get(&ByteString::new("peer id")) else {
+            return err();
+        };
+
+        let Some(Bencode::Text(ip)) = map.get(&ByteString::new("ip")) else {
+            return err();
+        };
+
+        let Some(Bencode::Number(port)) = map.get(&ByteString::new("port"))  else {
+            return err();
+        };
+
+        Ok(Self {
+            peer_id: peer_id.to_string(),
+            ip: ip.to_string(),
+            port: port.to_owned(),
+        })
     }
 }
