@@ -42,11 +42,11 @@ impl BencodeParser {
     }
 
     pub fn from_file(path: &str) -> Result<Bencode, BencodeError> {
-        let bytes = fs::read(path);
-        match bytes {
-            Ok(bytes) => Self::decode(&bytes),
-            _ => Err(BencodeError::new("invalid file contents".to_string())),
-        }
+        let Ok(bytes) = fs::read(path) else {
+            return Err(BencodeError::new("invalid file contents".to_string()))
+        };
+
+        Self::decode(&bytes)
     }
 
     pub fn encode(value: &Bencode) -> Vec<u8> {
@@ -212,22 +212,22 @@ impl BencodeParser {
         }
 
         // Now we know the string length, we can consume the iterator
-        // precisely to the point where the string ends.
-        match str_len.iter().collect::<String>().parse::<u64>() {
-            Ok(str_len) => {
-                let mut str_value = Vec::with_capacity(str_len as usize);
-
-                for byte in iterator.take(str_len as usize) {
-                    str_value.push(*byte);
-                }
-
-                Ok(Bencode::Text(ByteString::from_vec(str_value)))
-            }
-            Err(_) => Err(BencodeError::new(format!(
+        // precisely from the point we stoped consuming in the previous iteration
+        // to the point where the string ends.
+        let Ok(str_len) = str_len.iter().collect::<String>().parse::<u64>() else {
+            return Err(BencodeError::new(format!(
                 "Invalid string length '{:?}'",
                 str_len
-            ))),
+            )))
+        };
+
+        let mut str_value = Vec::with_capacity(str_len as usize);
+
+        for byte in iterator.take(str_len as usize) {
+            str_value.push(*byte);
         }
+
+        Ok(Bencode::Text(ByteString::from_vec(str_value)))
     }
 
     fn parse_int<'a>(iterator: &mut impl Iterator<Item = &'a u8>) -> Result<Bencode, BencodeError> {
