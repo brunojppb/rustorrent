@@ -47,7 +47,7 @@ impl<'a> HTTPTracker<'a> {
             .bytes()
             .await?;
 
-        let bencode_resp = BencodeParser::decode(&response.to_vec())?;
+        let bencode_resp = BencodeParser::decode(&response)?;
         let announce_info = AnnounceInfo::parse(&bencode_resp)?;
 
         Ok(announce_info)
