@@ -19,8 +19,10 @@ pub struct BencodeError {
 }
 
 impl BencodeError {
-    pub fn new(message: String) -> Self {
-        Self { message }
+    pub fn new<M: Into<String>>(message: M) -> Self {
+        Self {
+            message: message.into(),
+        }
     }
 }
 
@@ -43,7 +45,7 @@ impl BencodeParser {
 
     pub fn from_file(path: &str) -> Result<Bencode, BencodeError> {
         let Ok(bytes) = fs::read(path) else {
-            return Err(BencodeError::new("invalid file contents".to_string()))
+            return Err(BencodeError::new("invalid file contents"))
         };
 
         Self::decode(&bytes)
@@ -108,7 +110,7 @@ impl BencodeParser {
                     c
                 ))),
                 None => Err(BencodeError::new(
-                    "Empty bytes while trying to parse bencode value".to_string(),
+                    "Empty bytes while trying to parse bencode value",
                 )),
             };
         }
@@ -141,7 +143,7 @@ impl BencodeParser {
                         c
                     )))
                 }
-                None => return Err(BencodeError::new("Empty byte for dict key".to_string())),
+                None => return Err(BencodeError::new("Empty byte for dict key")),
             }
         }
 

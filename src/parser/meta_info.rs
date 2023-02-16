@@ -280,5 +280,5 @@ fn get_value<'a>(key: &str, dict: &'a Dict) -> Result<&'a Bencode, BencodeError>
 }
 
 fn parsing_error(msg: &str) -> BencodeError {
-    BencodeError::new(msg.to_string())
+    BencodeError::new(msg)
 }
