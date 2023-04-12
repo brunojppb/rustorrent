@@ -188,7 +188,7 @@ impl BencodeParser {
 
     /// Whether the given character is a valid number character
     fn is_digit(c: char) -> bool {
-        ('0'..='9').contains(&c)
+        c.is_ascii_digit()
     }
 
     fn parse_str<'a>(
